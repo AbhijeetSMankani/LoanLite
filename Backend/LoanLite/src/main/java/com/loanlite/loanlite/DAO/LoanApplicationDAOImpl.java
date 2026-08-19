@@ -1,6 +1,6 @@
 package com.loanlite.loanlite.DAO;
 
-import com.loanlite.loanlite.Entities.LoanApplication;
+import com.loanlite.loanlite.entities.LoanApplication;
 import com.loanlite.loanlite.DAO.LoanApplicationDAO;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;

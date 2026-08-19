@@ -1,8 +1,9 @@
-package com.loanlite.loanlite.Services;
+package com.loanlite.loanlite.services;
 
 import com.loanlite.loanlite.DAO.DocumentDAO;
-import com.loanlite.loanlite.Repository.DocumentRepository;
-import com.loanlite.loanlite.Entities.Document;
+import com.loanlite.loanlite.repository.DocumentRepository;
+import com.loanlite.loanlite.entities.Document;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,13 +13,8 @@ import java.util.List;
 @Service
 public class DocumentService {
 
-    private final DocumentRepository documentRepository;
-    private final DocumentDAO documentDAO;
-
-    public DocumentService(DocumentRepository documentRepository, DocumentDAO documentDAO) {
-        this.documentRepository = documentRepository;
-        this.documentDAO = documentDAO;
-    }
+    @Autowired
+    private DocumentRepository documentRepository;
 
     public Document createDocument(Document d) {
         if (d.getUploadedAt() == null) {
@@ -37,28 +33,35 @@ public class DocumentService {
     }
 
     public List<Document> findByApplicationId(Long applicationId) {
-        return documentDAO.findByApplicationId(applicationId);
+        return documentRepository.findByApplicationId(applicationId);
     }
 
     public List<Document> findByApplicationIdOrderByUploadedAtDesc(Long applicationId) {
-        return documentDAO.findByApplicationIdOrderByUploadedAtDesc(applicationId);
+        return documentRepository.findByApplicationIdOrderByUploadedAtDesc(applicationId);
     }
 
     public List<Document> findByDocumentType(String documentType) {
-        return documentDAO.findByDocumentType(documentType);
+        return documentRepository.findByDocumentType(documentType);
     }
 
     @Transactional
     public Document updateDocument(Long id, Document d) {
         Document existing = getDocument(id);
 
-        if (d.getApplication() != null) existing.setApplication(d.getApplication());
-        if (d.getDocumentType() != null) existing.setDocumentType(d.getDocumentType());
-        if (d.getFileName() != null) existing.setFileName(d.getFileName());
-        if (d.getFilePath() != null) existing.setFilePath(d.getFilePath());
-        if (d.getVerificationStatus() != null) existing.setVerificationStatus(d.getVerificationStatus());
-        if (d.getRemarks() != null) existing.setRemarks(d.getRemarks());
-        if (d.getUploadedAt() != null) existing.setUploadedAt(d.getUploadedAt());
+        if (d.getApplication() != null)
+            existing.setApplication(d.getApplication());
+        if (d.getDocumentType() != null)
+            existing.setDocumentType(d.getDocumentType());
+        if (d.getFileName() != null)
+            existing.setFileName(d.getFileName());
+        if (d.getFilePath() != null)
+            existing.setFilePath(d.getFilePath());
+        if (d.getVerificationStatus() != null)
+            existing.setVerificationStatus(d.getVerificationStatus());
+        if (d.getRemarks() != null)
+            existing.setRemarks(d.getRemarks());
+        if (d.getUploadedAt() != null)
+            existing.setUploadedAt(d.getUploadedAt());
 
         return documentRepository.save(existing);
     }

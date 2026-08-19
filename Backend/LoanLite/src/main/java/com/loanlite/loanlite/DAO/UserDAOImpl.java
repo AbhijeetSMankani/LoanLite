@@ -1,7 +1,7 @@
 package com.loanlite.loanlite.DAO;
 
 import com.loanlite.loanlite.DAO.UserDAO;
-import com.loanlite.loanlite.Entities.User;
+import com.loanlite.loanlite.entities.User;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;

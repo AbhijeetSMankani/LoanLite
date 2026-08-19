@@ -1,7 +1,7 @@
-package com.loanlite.loanlite.Services;
+package com.loanlite.loanlite.services;
 
-import com.loanlite.loanlite.Repository.LoanApplicationRepository;
-import com.loanlite.loanlite.Entities.LoanApplication;
+import com.loanlite.loanlite.repository.LoanApplicationRepository;
+import com.loanlite.loanlite.entities.LoanApplication;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,11 +15,6 @@ public class LoanApplicationService {
 
     @Autowired
     private LoanApplicationRepository loanApplicationRepository;
-
-//    public LoanApplicationService(LoanApplicationRepository loanApplicationRepository, loanApplicationRepository loanApplicationRepository) {
-//        this.loanApplicationRepository = loanApplicationRepository;
-//        this.loanApplicationRepository = loanApplicationRepository;
-//    }
 
     public LoanApplication createApplication(LoanApplication app) {
         if (app.getApplicationNumber() != null && loanApplicationRepository.findByApplicationNumber(app.getApplicationNumber()).isPresent()) {

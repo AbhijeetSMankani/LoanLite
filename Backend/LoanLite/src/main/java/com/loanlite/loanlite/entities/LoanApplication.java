@@ -1,7 +1,6 @@
-package
-com.loanlite.loanlite.Entities;
+package com.loanlite.loanlite.entities;
 
-import com.loanlite.loanlite.Entities.Document;
+import com.loanlite.loanlite.entities.Document;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -22,7 +21,7 @@ public class LoanApplication {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "applicant_id")
 
-    private com.loanlite.loanlite.Entities.User applicant;
+    private User applicant;
 
     @Column(name = "loan_amount")
     private BigDecimal loanAmount;
@@ -58,11 +57,11 @@ public class LoanApplication {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "processor_id")
-    private com.loanlite.loanlite.Entities.User processor;
+    private User processor;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "underwriter_id")
-    private com.loanlite.loanlite.Entities.User underwriter;
+    private User underwriter;
 
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
@@ -79,71 +78,182 @@ public class LoanApplication {
     @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ApplicationHistory> applicationHistory = new ArrayList<>();
 
-    public LoanApplication() {}
+    public LoanApplication() {
+    }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getApplicationNumber() { return applicationNumber; }
-    public void setApplicationNumber(String applicationNumber) { this.applicationNumber = applicationNumber; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public com.loanlite.loanlite.Entities.User getApplicant() { return applicant; }
-    public void setApplicant(com.loanlite.loanlite.Entities.User applicant) { this.applicant = applicant; }
+    public String getApplicationNumber() {
+        return applicationNumber;
+    }
 
-    public BigDecimal getLoanAmount() { return loanAmount; }
-    public void setLoanAmount(BigDecimal loanAmount) { this.loanAmount = loanAmount; }
+    public void setApplicationNumber(String applicationNumber) {
+        this.applicationNumber = applicationNumber;
+    }
 
-    public Integer getTenureMonths() { return tenureMonths; }
-    public void setTenureMonths(Integer tenureMonths) { this.tenureMonths = tenureMonths; }
+    public User getApplicant() {
+        return applicant;
+    }
 
-    public BigDecimal getDeclaredIncome() { return declaredIncome; }
-    public void setDeclaredIncome(BigDecimal declaredIncome) { this.declaredIncome = declaredIncome; }
+    public void setApplicant(User applicant) {
+        this.applicant = applicant;
+    }
 
-    public BigDecimal getVerifiedIncome() { return verifiedIncome; }
-    public void setVerifiedIncome(BigDecimal verifiedIncome) { this.verifiedIncome = verifiedIncome; }
+    public BigDecimal getLoanAmount() {
+        return loanAmount;
+    }
 
-    public Integer getCreditScore() { return creditScore; }
-    public void setCreditScore(Integer creditScore) { this.creditScore = creditScore; }
+    public void setLoanAmount(BigDecimal loanAmount) {
+        this.loanAmount = loanAmount;
+    }
 
-    public BigDecimal getInterestRate() { return interestRate; }
-    public void setInterestRate(BigDecimal interestRate) { this.interestRate = interestRate; }
+    public Integer getTenureMonths() {
+        return tenureMonths;
+    }
 
-    public BigDecimal getEmi() { return emi; }
-    public void setEmi(BigDecimal emi) { this.emi = emi; }
+    public void setTenureMonths(Integer tenureMonths) {
+        this.tenureMonths = tenureMonths;
+    }
 
-    public String getStatus() { return status; }
-    public void setStatus(String status) { this.status = status; }
+    public BigDecimal getDeclaredIncome() {
+        return declaredIncome;
+    }
 
-    public String getRecommendation() { return recommendation; }
-    public void setRecommendation(String recommendation) { this.recommendation = recommendation; }
+    public void setDeclaredIncome(BigDecimal declaredIncome) {
+        this.declaredIncome = declaredIncome;
+    }
 
-    public String getRecommendationReason() { return recommendationReason; }
-    public void setRecommendationReason(String recommendationReason) { this.recommendationReason = recommendationReason; }
+    public BigDecimal getVerifiedIncome() {
+        return verifiedIncome;
+    }
 
-    public String getDecision() { return decision; }
-    public void setDecision(String decision) { this.decision = decision; }
+    public void setVerifiedIncome(BigDecimal verifiedIncome) {
+        this.verifiedIncome = verifiedIncome;
+    }
 
-    public String getDecisionComments() { return decisionComments; }
-    public void setDecisionComments(String decisionComments) { this.decisionComments = decisionComments; }
+    public Integer getCreditScore() {
+        return creditScore;
+    }
 
-    public com.loanlite.loanlite.Entities.User getProcessor() { return processor; }
-    public void setProcessor(com.loanlite.loanlite.Entities.User processor) { this.processor = processor; }
+    public void setCreditScore(Integer creditScore) {
+        this.creditScore = creditScore;
+    }
 
-    public com.loanlite.loanlite.Entities.User getUnderwriter() { return underwriter; }
-    public void setUnderwriter(com.loanlite.loanlite.Entities.User underwriter) { this.underwriter = underwriter; }
+    public BigDecimal getInterestRate() {
+        return interestRate;
+    }
 
-    public LocalDateTime getSubmittedAt() { return submittedAt; }
-    public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
+    public void setInterestRate(BigDecimal interestRate) {
+        this.interestRate = interestRate;
+    }
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public BigDecimal getEmi() {
+        return emi;
+    }
 
-    public LocalDateTime getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public void setEmi(BigDecimal emi) {
+        this.emi = emi;
+    }
 
-    public List<Document> getDocuments() { return documents; }
-    public void setDocuments(List<com.loanlite.loanlite.Entities.Document> documents) { this.documents = documents; }
+    public String getStatus() {
+        return status;
+    }
 
-    public List<com.loanlite.loanlite.Entities.ApplicationHistory> getApplicationHistory() { return applicationHistory; }
-    public void setApplicationHistory(List<com.loanlite.loanlite.Entities.ApplicationHistory> applicationHistory) { this.applicationHistory = applicationHistory; }
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getRecommendation() {
+        return recommendation;
+    }
+
+    public void setRecommendation(String recommendation) {
+        this.recommendation = recommendation;
+    }
+
+    public String getRecommendationReason() {
+        return recommendationReason;
+    }
+
+    public void setRecommendationReason(String recommendationReason) {
+        this.recommendationReason = recommendationReason;
+    }
+
+    public String getDecision() {
+        return decision;
+    }
+
+    public void setDecision(String decision) {
+        this.decision = decision;
+    }
+
+    public String getDecisionComments() {
+        return decisionComments;
+    }
+
+    public void setDecisionComments(String decisionComments) {
+        this.decisionComments = decisionComments;
+    }
+
+    public User getProcessor() {
+        return processor;
+    }
+
+    public void setProcessor(User processor) {
+        this.processor = processor;
+    }
+
+    public User getUnderwriter() {
+        return underwriter;
+    }
+
+    public void setUnderwriter(User underwriter) {
+        this.underwriter = underwriter;
+    }
+
+    public LocalDateTime getSubmittedAt() {
+        return submittedAt;
+    }
+
+    public void setSubmittedAt(LocalDateTime submittedAt) {
+        this.submittedAt = submittedAt;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public List<Document> getDocuments() {
+        return documents;
+    }
+
+    public void setDocuments(List<Document> documents) {
+        this.documents = documents;
+    }
+
+    public List<ApplicationHistory> getApplicationHistory() {
+        return applicationHistory;
+    }
+
+    public void setApplicationHistory(List<ApplicationHistory> applicationHistory) {
+        this.applicationHistory = applicationHistory;
+    }
 }

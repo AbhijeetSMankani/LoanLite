@@ -1,8 +1,9 @@
-package com.loanlite.loanlite.Services;
+package com.loanlite.loanlite.services;
 
 import com.loanlite.loanlite.DAO.ApplicationHistoryDAO;
-import com.loanlite.loanlite.Repository.ApplicationHistoryRepository;
-import com.loanlite.loanlite.Entities.ApplicationHistory;
+import com.loanlite.loanlite.repository.ApplicationHistoryRepository;
+import com.loanlite.loanlite.entities.ApplicationHistory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -12,14 +13,8 @@ import java.util.List;
 @Service
 public class ApplicationHistoryService {
 
-    private final ApplicationHistoryRepository applicationHistoryRepository;
-    private final ApplicationHistoryDAO applicationHistoryDAO;
-
-    public ApplicationHistoryService(ApplicationHistoryRepository applicationHistoryRepository,
-                                    ApplicationHistoryDAO applicationHistoryDAO) {
-        this.applicationHistoryRepository = applicationHistoryRepository;
-        this.applicationHistoryDAO = applicationHistoryDAO;
-    }
+    @Autowired
+    private ApplicationHistoryRepository applicationHistoryRepository;
 
     public ApplicationHistory createHistory(ApplicationHistory h) {
         if (h.getCreatedAt() == null) {
@@ -38,19 +33,19 @@ public class ApplicationHistoryService {
     }
 
     public List<ApplicationHistory> findByApplicationId(Long applicationId) {
-        return applicationHistoryDAO.findByApplicationId(applicationId);
+        return applicationHistoryRepository.findByApplicationId(applicationId);
     }
 
     public List<ApplicationHistory> findByUserId(Long userId) {
-        return applicationHistoryDAO.findByUserId(userId);
+        return applicationHistoryRepository.findByUserId(userId);
     }
 
     public List<ApplicationHistory> findByAction(String action) {
-        return applicationHistoryDAO.findByAction(action);
+        return applicationHistoryRepository.findByAction(action);
     }
 
     public List<ApplicationHistory> findByApplicationIdOrderByCreatedAtDesc(Long applicationId) {
-        return applicationHistoryDAO.findByApplicationIdOrderByCreatedAtDesc(applicationId);
+        return applicationHistoryRepository.findByApplicationIdOrderByCreatedAtDesc(applicationId);
     }
 
     @Transactional

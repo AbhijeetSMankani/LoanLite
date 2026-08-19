@@ -1,14 +1,17 @@
-package com.loanlite.loanlite.Repository;
+package com.loanlite.loanlite.repository;
 
-import com.loanlite.loanlite.Entities.Document;
+import com.loanlite.loanlite.DAO.DocumentDAO;
+import com.loanlite.loanlite.entities.Document;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
-public interface DocumentRepository extends JpaRepository<Document, Long> {
+public interface DocumentRepository extends JpaRepository<Document, Long>, DocumentDAO {
     List<Document> findByApplicationId(Long applicationId);
+
     List<Document> findByApplicationIdOrderByUploadedAtDesc(Long applicationId);
+
     List<Document> findByDocumentType(String documentType);
 }

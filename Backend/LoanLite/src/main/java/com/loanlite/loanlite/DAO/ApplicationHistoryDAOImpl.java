@@ -1,6 +1,6 @@
 package com.loanlite.loanlite.DAO;
 
-import com.loanlite.loanlite.Entities.ApplicationHistory;
+import com.loanlite.loanlite.entities.ApplicationHistory;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;

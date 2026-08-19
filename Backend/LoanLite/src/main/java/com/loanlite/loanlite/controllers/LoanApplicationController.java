@@ -1,7 +1,7 @@
 package com.loanlite.loanlite.controllers;
 
-import com.loanlite.loanlite.Services.LoanApplicationService;
-import com.loanlite.loanlite.Entities.LoanApplication;
+import com.loanlite.loanlite.services.LoanApplicationService;
+import com.loanlite.loanlite.entities.LoanApplication;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

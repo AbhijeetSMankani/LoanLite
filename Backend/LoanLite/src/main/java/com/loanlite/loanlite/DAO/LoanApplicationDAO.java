@@ -1,6 +1,6 @@
 package com.loanlite.loanlite.DAO;
 
-import com.loanlite.loanlite.Entities.LoanApplication;
+import com.loanlite.loanlite.entities.LoanApplication;
 import java.util.List;
 import java.util.Optional;
 
