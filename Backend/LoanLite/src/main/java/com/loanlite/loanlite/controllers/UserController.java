@@ -20,6 +20,7 @@ public class UserController {
 
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<User> create(@RequestBody User user) {
         User created = service.createUser(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);

@@ -2,10 +2,13 @@ package com.loanlite.loanlite.entities;
 
 import com.loanlite.loanlite.entities.Document;
 import jakarta.persistence.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 @Entity
 @Table(name = "loan_applications")
@@ -20,7 +23,7 @@ public class LoanApplication {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "applicant_id")
-
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private User applicant;
 
     @Column(name = "loan_amount")
@@ -43,13 +46,16 @@ public class LoanApplication {
 
     private BigDecimal emi;
 
+    @Column(name = "status")
     private String status;
 
+    @Column(name = "recommendation")
     private String recommendation;
 
     @Column(name = "recommendation_reason")
     private String recommendationReason;
 
+    @Column(name = "decision")
     private String decision;
 
     @Column(name = "decision_comments")
@@ -57,10 +63,12 @@ public class LoanApplication {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "processor_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private User processor;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "underwriter_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private User underwriter;
 
     @Column(name = "submitted_at")
@@ -72,9 +80,11 @@ public class LoanApplication {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @JsonManagedReference(value = "documents")
     @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Document> documents = new ArrayList<>();
 
+    @JsonManagedReference(value = "history")
     @OneToMany(mappedBy = "application", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ApplicationHistory> applicationHistory = new ArrayList<>();
 

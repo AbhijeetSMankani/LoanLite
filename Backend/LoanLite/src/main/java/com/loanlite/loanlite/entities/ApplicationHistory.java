@@ -1,7 +1,10 @@
 package com.loanlite.loanlite.entities;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.loanlite.loanlite.entities.User;
 import com.loanlite.loanlite.entities.LoanApplication;
 
@@ -14,12 +17,15 @@ public class ApplicationHistory {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @JsonBackReference(value = "history")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "application_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private LoanApplication application;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
 
     private String action;
