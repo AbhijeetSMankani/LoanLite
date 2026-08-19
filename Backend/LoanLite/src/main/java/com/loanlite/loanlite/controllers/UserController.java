@@ -1,7 +1,7 @@
 package com.loanlite.loanlite.controllers;
 
-import com.loanlite.loanlite.entities.User;
-import com.loanlite.loanlite.services.UserService;
+import com.loanlite.loanlite.Services.UserService;
+import com.loanlite.loanlite.Entities.User;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +13,9 @@ import java.util.List;
 public class UserController {
     private final UserService service;
 
-    public UserController(UserService service) { this.service = service; }
+    public UserController(UserService service) {
+        this.service = service;
+    }
 
     @PostMapping
     public ResponseEntity<User> create(@RequestBody User user) {
@@ -23,8 +25,8 @@ public class UserController {
 
     @GetMapping("/{id}")
     public ResponseEntity<User> get(@PathVariable Long id) {
-        User u = service.getUser(id);
-        return ResponseEntity.ok(u);
+        User user = service.getUser(id);
+        return ResponseEntity.ok(user);
     }
 
     @GetMapping

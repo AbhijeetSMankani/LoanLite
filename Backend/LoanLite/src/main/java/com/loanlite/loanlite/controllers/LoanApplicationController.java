@@ -1,7 +1,8 @@
 package com.loanlite.loanlite.controllers;
 
-import com.loanlite.loanlite.entities.LoanApplication;
-import com.loanlite.loanlite.services.LoanApplicationService;
+import com.loanlite.loanlite.Services.LoanApplicationService;
+import com.loanlite.loanlite.Entities.LoanApplication;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,9 +12,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/loan-applications")
 public class LoanApplicationController {
-    private final LoanApplicationService service;
+    @Autowired
+    private LoanApplicationService service;
 
-    public LoanApplicationController(LoanApplicationService service) { this.service = service; }
 
     @PostMapping
     public ResponseEntity<LoanApplication> create(@RequestBody LoanApplication app) {

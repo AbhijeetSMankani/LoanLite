@@ -1,4 +1,4 @@
-package com.loanlite.loanlite.entities;
+package com.loanlite.loanlite.Entities;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -13,11 +13,11 @@ public class ApplicationHistory {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "application_id")
-    private LoanApplication application;
+    private com.loanlite.loanlite.Entities.LoanApplication application;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User user;
+    private com.loanlite.loanlite.Entities.User user;
 
     private String action;
 
@@ -31,11 +31,11 @@ public class ApplicationHistory {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public LoanApplication getApplication() { return application; }
-    public void setApplication(LoanApplication application) { this.application = application; }
+    public com.loanlite.loanlite.Entities.LoanApplication getApplication() { return application; }
+    public void setApplication(com.loanlite.loanlite.Entities.LoanApplication application) { this.application = application; }
 
-    public User getUser() { return user; }
-    public void setUser(User user) { this.user = user; }
+    public com.loanlite.loanlite.Entities.User getUser() { return user; }
+    public void setUser(com.loanlite.loanlite.Entities.User user) { this.user = user; }
 
     public String getAction() { return action; }
     public void setAction(String action) { this.action = action; }

@@ -1,5 +1,7 @@
-package com.loanlite.loanlite.entities;
+package
+com.loanlite.loanlite.Entities;
 
+import com.loanlite.loanlite.Entities.Document;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -19,7 +21,8 @@ public class LoanApplication {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "applicant_id")
-    private User applicant;
+
+    private com.loanlite.loanlite.Entities.User applicant;
 
     @Column(name = "loan_amount")
     private BigDecimal loanAmount;
@@ -55,11 +58,11 @@ public class LoanApplication {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "processor_id")
-    private User processor;
+    private com.loanlite.loanlite.Entities.User processor;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "underwriter_id")
-    private User underwriter;
+    private com.loanlite.loanlite.Entities.User underwriter;
 
     @Column(name = "submitted_at")
     private LocalDateTime submittedAt;
@@ -84,8 +87,8 @@ public class LoanApplication {
     public String getApplicationNumber() { return applicationNumber; }
     public void setApplicationNumber(String applicationNumber) { this.applicationNumber = applicationNumber; }
 
-    public User getApplicant() { return applicant; }
-    public void setApplicant(User applicant) { this.applicant = applicant; }
+    public com.loanlite.loanlite.Entities.User getApplicant() { return applicant; }
+    public void setApplicant(com.loanlite.loanlite.Entities.User applicant) { this.applicant = applicant; }
 
     public BigDecimal getLoanAmount() { return loanAmount; }
     public void setLoanAmount(BigDecimal loanAmount) { this.loanAmount = loanAmount; }
@@ -123,11 +126,11 @@ public class LoanApplication {
     public String getDecisionComments() { return decisionComments; }
     public void setDecisionComments(String decisionComments) { this.decisionComments = decisionComments; }
 
-    public User getProcessor() { return processor; }
-    public void setProcessor(User processor) { this.processor = processor; }
+    public com.loanlite.loanlite.Entities.User getProcessor() { return processor; }
+    public void setProcessor(com.loanlite.loanlite.Entities.User processor) { this.processor = processor; }
 
-    public User getUnderwriter() { return underwriter; }
-    public void setUnderwriter(User underwriter) { this.underwriter = underwriter; }
+    public com.loanlite.loanlite.Entities.User getUnderwriter() { return underwriter; }
+    public void setUnderwriter(com.loanlite.loanlite.Entities.User underwriter) { this.underwriter = underwriter; }
 
     public LocalDateTime getSubmittedAt() { return submittedAt; }
     public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
@@ -139,8 +142,8 @@ public class LoanApplication {
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
     public List<Document> getDocuments() { return documents; }
-    public void setDocuments(List<Document> documents) { this.documents = documents; }
+    public void setDocuments(List<com.loanlite.loanlite.Entities.Document> documents) { this.documents = documents; }
 
-    public List<ApplicationHistory> getApplicationHistory() { return applicationHistory; }
-    public void setApplicationHistory(List<ApplicationHistory> applicationHistory) { this.applicationHistory = applicationHistory; }
+    public List<com.loanlite.loanlite.Entities.ApplicationHistory> getApplicationHistory() { return applicationHistory; }
+    public void setApplicationHistory(List<com.loanlite.loanlite.Entities.ApplicationHistory> applicationHistory) { this.applicationHistory = applicationHistory; }
 }

@@ -1,4 +1,5 @@
-package com.loanlite.loanlite.entities;
+package
+com.loanlite.loanlite.Entities;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -13,7 +14,7 @@ public class Document {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "application_id")
-    private LoanApplication application;
+    private com.loanlite.loanlite.Entities.LoanApplication application;
 
     @Column(name = "document_type")
     private String documentType;
@@ -37,8 +38,8 @@ public class Document {
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public LoanApplication getApplication() { return application; }
-    public void setApplication(LoanApplication application) { this.application = application; }
+    public com.loanlite.loanlite.Entities.LoanApplication getApplication() { return application; }
+    public void setApplication(com.loanlite.loanlite.Entities.LoanApplication application) { this.application = application; }
 
     public String getDocumentType() { return documentType; }
     public void setDocumentType(String documentType) { this.documentType = documentType; }

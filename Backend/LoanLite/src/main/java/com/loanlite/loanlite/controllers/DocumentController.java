@@ -1,7 +1,7 @@
 package com.loanlite.loanlite.controllers;
 
-import com.loanlite.loanlite.entities.Document;
-import com.loanlite.loanlite.services.DocumentService;
+import com.loanlite.loanlite.Entities.Document;
+import com.loanlite.loanlite.Services.DocumentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

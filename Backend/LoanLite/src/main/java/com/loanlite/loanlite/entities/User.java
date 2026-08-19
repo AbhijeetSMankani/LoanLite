@@ -1,4 +1,4 @@
-package com.loanlite.loanlite.entities;
+package com.loanlite.loanlite.Entities;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
