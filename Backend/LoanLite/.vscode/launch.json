@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "DEV",
+      "request": "launch",
+      "mainClass": "com.loanlite.loanlite.LoanLiteApplication",
+      "projectName": "LoanLite",
+      "env": { "SPRING_PROFILES_ACTIVE": "dev" }
+    }
+  ]
+}
