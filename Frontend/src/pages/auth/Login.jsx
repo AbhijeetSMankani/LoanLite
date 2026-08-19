@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
@@ -105,11 +105,23 @@ const Login = () => {
 
         {/* Footer */}
         <div className="mt-6 text-center text-xs text-gray-600">
-          <p>Demo Credentials:</p>
-          <p className="mt-2 text-gray-500 text-xs">
+          <p className="mb-4">Demo Credentials:</p>
+          <p className="text-gray-500 text-xs mb-4">
             Email: user@example.com<br />
             Password: password123
           </p>
+          
+          <div className="border-t pt-4">
+            <p>
+              Don't have an account?{' '}
+              <Link
+                to="/signup"
+                className="text-orange-600 font-semibold hover:text-orange-700 no-underline"
+              >
+                Sign up here
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>

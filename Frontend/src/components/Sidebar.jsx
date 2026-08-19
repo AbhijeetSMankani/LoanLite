@@ -42,10 +42,10 @@ const Sidebar = () => {
           <Link
             key={item.path}
             to={item.path}
-            className={`block px-6 py-3 transition-colors cursor-pointer no-underline ${
+            className={`block px-6 py-3 transition-all duration-200 cursor-pointer no-underline ${
               isActive(item.path)
-                ? 'bg-orange-600 border-l-4 border-orange-200 pl-5'
-                : 'hover:bg-gray-700'
+                ? 'bg-orange-600 text-white border-l-4 border-yellow-300 pl-5 font-semibold'
+                : 'text-gray-300 hover:bg-gray-700 hover:text-white'
             }`}
           >
             {item.label}

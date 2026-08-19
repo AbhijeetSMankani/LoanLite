@@ -23,12 +23,14 @@ function AppContent() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-full">
+    <div className="flex flex-col h-screen bg-gray-100">
       <Navbar />
-      <div className="flex flex-1 overflow-hidden w-full">
+      <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-100 w-full">
-          <AppRoutes />
+        <main className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="w-full">
+            <AppRoutes />
+          </div>
         </main>
       </div>
     </div>

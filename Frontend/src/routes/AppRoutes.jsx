@@ -5,6 +5,7 @@ import Loader from '../components/Loader';
 
 // Pages
 import Login from '../pages/auth/Login';
+import Signup from '../pages/auth/Signup';
 import ApplicantDashboard from '../pages/applicant/Dashboard';
 import ApplyLoan from '../pages/applicant/ApplyLoan';
 import MyApplications from '../pages/applicant/MyApplications';
@@ -40,6 +41,7 @@ const AppRoutes = () => {
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
 
       {/* Applicant Routes */}
       <Route
