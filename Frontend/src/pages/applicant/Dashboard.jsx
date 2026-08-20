@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import Loader from '../../components/Loader';
 import Button from '../../components/Button';
 import StatCard from '../../components/StatCard';
+import Card from '../../components/Card';
 import loanService from '../../services/loanService';
+import { FilePlus2, FileText, LifeBuoy, ArrowRight } from 'lucide-react';
 
 const ApplicantDashboard = () => {
   const navigate = useNavigate();
@@ -22,27 +24,18 @@ const ApplicantDashboard = () => {
       try {
         setLoading(true);
         const response = await loanService.getMyApplications(1, 100);
-        
+
         const applications = response.data || [];
-        const newStats = {
+        setStats({
           total: applications.length,
-          draft: applications.filter(a => a.status === 'draft').length,
-          submitted: applications.filter(a => a.status === 'submitted').length,
-          approved: applications.filter(a => a.status === 'approved').length,
-          rejected: applications.filter(a => a.status === 'rejected').length,
-        };
-        
-        setStats(newStats);
+          draft: applications.filter((a) => a.status === 'draft').length,
+          submitted: applications.filter((a) => a.status === 'submitted').length,
+          approved: applications.filter((a) => a.status === 'approved').length,
+          rejected: applications.filter((a) => a.status === 'rejected').length,
+        });
       } catch (err) {
         console.error('Error fetching applications:', err);
-        // Set default stats for demo
-        setStats({
-          total: 5,
-          draft: 1,
-          submitted: 2,
-          approved: 1,
-          rejected: 1,
-        });
+        setError(err.message || 'Failed to load your applications');
       } finally {
         setLoading(false);
       }
@@ -53,63 +46,75 @@ const ApplicantDashboard = () => {
 
   if (loading) return <Loader fullScreen />;
 
+  const quickActions = [
+    {
+      title: 'Apply for Loan',
+      description: 'Start a new loan application',
+      icon: FilePlus2,
+      onClick: () => navigate('/applicant/apply'),
+    },
+    {
+      title: 'My Applications',
+      description: 'Track your applications',
+      icon: FileText,
+      onClick: () => navigate('/applicant/my-applications'),
+    },
+    {
+      title: 'Help & Support',
+      description: 'Get help with your loan',
+      icon: LifeBuoy,
+      onClick: null,
+    },
+  ];
+
   return (
-    <div className="p-8">
-      <div className="max-w-6xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">Welcome to LoanLite</h1>
-          <p className="text-gray-600">Manage your loan applications</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Welcome to LoanLite</h1>
+          <p className="text-gray-500">Manage your loan applications</p>
         </div>
 
-        {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-300 text-red-700 rounded">
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
             {error}
           </div>
         )}
 
-        {/* CTA Button */}
         <div className="mb-8">
-          <Button
-            variant="primary"
-            onClick={() => navigate('/applicant/apply')}
-          >
-            + Apply for New Loan
+          <Button variant="primary" size="lg" onClick={() => navigate('/applicant/apply')}>
+            <FilePlus2 size={18} /> Apply for New Loan
           </Button>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-12">
-          <StatCard title="Total Applications" value={stats.total} color="bg-blue-500" />
-          <StatCard title="Draft" value={stats.draft} color="bg-gray-500" />
-          <StatCard title="Submitted" value={stats.submitted} color="bg-yellow-500" />
-          <StatCard title="Approved" value={stats.approved} color="bg-green-500" />
-          <StatCard title="Rejected" value={stats.rejected} color="bg-red-500" />
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-10">
+          <StatCard title="Total Applications" value={stats.total} variant="total" />
+          <StatCard title="Draft" value={stats.draft} variant="neutral" />
+          <StatCard title="Submitted" value={stats.submitted} variant="warning" />
+          <StatCard title="Approved" value={stats.approved} variant="success" />
+          <StatCard title="Rejected" value={stats.rejected} variant="danger" />
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div
-            className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
-            onClick={() => navigate('/applicant/apply')}
-          >
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Apply for Loan</h3>
-            <p className="text-gray-600">Start a new loan application</p>
-          </div>
-
-          <div
-            className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer"
-            onClick={() => navigate('/applicant/my-applications')}
-          >
-            <h3 className="text-xl font-bold text-gray-800 mb-2">My Applications</h3>
-            <p className="text-gray-600">Track your applications</p>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
-            <h3 className="text-xl font-bold text-gray-800 mb-2">Help & Support</h3>
-            <p className="text-gray-600">Get help with your loan</p>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {quickActions.map(({ title, description, icon: Icon, onClick }) => (
+            <Card
+              key={title}
+              onClick={onClick || undefined}
+              className={`transition-shadow ${onClick ? 'hover:shadow-md cursor-pointer' : ''}`}
+            >
+              <div className="w-11 h-11 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center mb-4">
+                <Icon size={22} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800 mb-1 flex items-center gap-1">
+                {title}
+                {onClick && <ArrowRight size={16} className="text-gray-300" />}
+              </h3>
+              <p className="text-gray-500 text-sm">{description}</p>
+            </Card>
+          ))}
         </div>
       </div>
     </div>

@@ -1,29 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Loader from '../../components/Loader';
 import Button from '../../components/Button';
 import Modal from '../../components/Modal';
 import Input from '../../components/Input';
+import Card from '../../components/Card';
+import EmptyState from '../../components/EmptyState';
 import loanService from '../../services/loanService';
 import documentService from '../../services/documentService';
+import StatusBadge from '../../components/StatusBadge';
+import { fullName } from '../../utils/role';
+import { FileSearch } from 'lucide-react';
 
 const DocumentVerification = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const applicationId = searchParams.get('applicationId');
-  
-  const [loading, setLoading] = useState(true);
+
+  const [loading, setLoading] = useState(Boolean(applicationId));
   const [error, setError] = useState('');
   const [application, setApplication] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [verificationNotes, setVerificationNotes] = useState('');
-
-  useEffect(() => {
-    if (applicationId) {
-      fetchApplicationDetails();
-    }
-  }, [applicationId]);
 
   const fetchApplicationDetails = async () => {
     try {
@@ -40,6 +40,13 @@ const DocumentVerification = () => {
     }
   };
 
+  useEffect(() => {
+    if (applicationId) {
+      fetchApplicationDetails();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicationId]);
+
   const handleVerifyDocument = async (isApproved) => {
     if (!selectedDoc) return;
 
@@ -49,7 +56,7 @@ const DocumentVerification = () => {
         verified: isApproved,
         notes: verificationNotes,
       });
-      
+
       setShowVerifyModal(false);
       setSelectedDoc(null);
       setVerificationNotes('');
@@ -65,101 +72,110 @@ const DocumentVerification = () => {
 
   if (!application) {
     return (
-      <div className="p-8">
-        <div className="text-center">
-          <p className="text-gray-600 text-lg mb-4">No application selected for verification</p>
-          <p className="text-gray-500">Please select an application from the list</p>
+      <div className="p-4 sm:p-6 lg:p-8">
+        <div className="max-w-4xl mx-auto">
+          <EmptyState
+            icon={FileSearch}
+            title="No application selected"
+            message="Pick an application from the list to review its documents."
+            action={
+              <Button variant="primary" onClick={() => navigate('/processor/applications')}>
+                Go to Applications
+              </Button>
+            }
+          />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">Document Verification</h1>
-          <p className="text-gray-600 mt-2">Application #{application.id}</p>
+        <div className="mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Document Verification</h1>
+          <p className="text-gray-500 mt-1">Application #{application.id}</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
-          </div>
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>
         )}
 
         {/* Application Summary */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div>
-              <p className="text-gray-600 text-sm">Applicant</p>
-              <p className="text-lg font-semibold text-gray-800">{application.applicantName || 'N/A'}</p>
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Applicant</p>
+              <p className="text-base font-semibold text-gray-800 mt-1">{fullName(application.applicant)}</p>
             </div>
             <div>
-              <p className="text-gray-600 text-sm">Loan Amount</p>
-              <p className="text-lg font-semibold text-orange-600">₹{application.loanAmount?.toLocaleString()}</p>
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Loan Amount</p>
+              <p className="text-base font-semibold text-primary-600 mt-1">
+                ₹{application.loanAmount?.toLocaleString()}
+              </p>
             </div>
             <div>
-              <p className="text-gray-600 text-sm">Income</p>
-              <p className="text-lg font-semibold text-gray-800">₹{application.income?.toLocaleString()}/month</p>
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Income</p>
+              <p className="text-base font-semibold text-gray-800 mt-1">
+                ₹{application.declaredIncome?.toLocaleString()}/month
+              </p>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Documents Section */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-xl font-bold text-gray-800 mb-6">Documents to Verify</h3>
+        <Card>
+          <h3 className="text-lg font-bold text-gray-800 mb-6">Documents to Verify</h3>
 
           {documents.length === 0 ? (
-            <p className="text-gray-600">No documents uploaded yet</p>
+            <p className="text-gray-500 text-sm py-4">No documents uploaded yet</p>
           ) : (
-            <div className="space-y-4">
-              {documents.map(doc => (
+            <div className="space-y-3">
+              {documents.map((doc) => (
                 <div
                   key={doc.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-gray-50 rounded-lg border border-gray-100"
                 >
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-800">{doc.fileName}</p>
-                    <p className="text-sm text-gray-600">
-                      Uploaded: {new Date(doc.createdAt).toLocaleDateString()}
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-800 truncate">{doc.fileName}</p>
+                    <p className="text-xs text-gray-500">
+                      Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
                     </p>
                   </div>
 
-                  <div className="flex gap-2">
-                    {!doc.verified ? (
+                  <div className="flex gap-2 shrink-0">
+                    {doc.verificationStatus === 'pending' || !doc.verificationStatus ? (
                       <>
                         <Button
                           variant="success"
+                          size="sm"
                           onClick={() => {
                             setSelectedDoc(doc);
                             setShowVerifyModal(true);
                           }}
-                          className="text-sm px-4 py-2"
                         >
                           Approve
                         </Button>
                         <Button
                           variant="danger"
+                          size="sm"
                           onClick={() => {
                             setSelectedDoc(doc);
                             setShowVerifyModal(true);
                           }}
-                          className="text-sm px-4 py-2"
                         >
                           Reject
                         </Button>
                       </>
                     ) : (
-                      <span className="text-green-600 font-semibold">✓ Verified</span>
+                      <StatusBadge status={doc.verificationStatus} />
                     )}
                   </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Verification Modal */}
         <Modal
@@ -182,32 +198,24 @@ const DocumentVerification = () => {
               >
                 Cancel
               </Button>
-              <Button
-                variant="danger"
-                onClick={() => handleVerifyDocument(false)}
-              >
+              <Button variant="danger" onClick={() => handleVerifyDocument(false)}>
                 Reject
               </Button>
-              <Button
-                variant="success"
-                onClick={() => handleVerifyDocument(true)}
-              >
+              <Button variant="success" onClick={() => handleVerifyDocument(true)}>
                 Approve
               </Button>
             </>
           }
         >
-          <div>
-            <p className="text-gray-800 font-semibold mb-4">{selectedDoc?.fileName}</p>
-            <Input
-              label="Verification Notes"
-              name="notes"
-              type="textarea"
-              value={verificationNotes}
-              onChange={(e) => setVerificationNotes(e.target.value)}
-              placeholder="Add any notes about the document"
-            />
-          </div>
+          <p className="text-gray-800 font-semibold mb-4">{selectedDoc?.fileName}</p>
+          <Input
+            label="Verification Notes"
+            name="notes"
+            type="textarea"
+            value={verificationNotes}
+            onChange={(e) => setVerificationNotes(e.target.value)}
+            placeholder="Add any notes about the document"
+          />
         </Modal>
       </div>
     </div>

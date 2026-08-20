@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Loader from '../../components/Loader';
 import StatCard from '../../components/StatCard';
+import Card from '../../components/Card';
 import userService from '../../services/userService';
+import { Users, ClipboardList, Settings, ArrowRight } from 'lucide-react';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -23,84 +25,79 @@ const AdminDashboard = () => {
         setStats(response.data || stats);
       } catch (err) {
         setError(err.message || 'Failed to load statistics');
-        // Set default stats
-        setStats({
-          totalUsers: 12,
-          totalApplications: 48,
-          approvedLoans: 35,
-          rejectedLoans: 13,
-        });
       } finally {
         setLoading(false);
       }
     };
 
     fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) return <Loader fullScreen />;
 
   return (
-    <div className="p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">System management and oversight</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Admin Dashboard</h1>
+          <p className="text-gray-500">System management and oversight</p>
         </div>
 
-        {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded">
-            {error}
-          </div>
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm">{error}</div>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
-          <StatCard title="Total Users" value={stats.totalUsers} color="bg-blue-500" />
-          <StatCard title="Total Applications" value={stats.totalApplications} color="bg-purple-500" />
-          <StatCard title="Approved" value={stats.approvedLoans} color="bg-green-500" />
-          <StatCard title="Rejected" value={stats.rejectedLoans} color="bg-red-500" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+          <StatCard title="Total Users" value={stats.totalUsers} variant="users" />
+          <StatCard title="Total Applications" value={stats.totalApplications} variant="primary" />
+          <StatCard title="Approved" value={stats.approvedLoans} variant="success" />
+          <StatCard title="Rejected" value={stats.rejectedLoans} variant="danger" />
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div
-            className="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow cursor-pointer"
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <Card
             onClick={() => navigate('/admin/users')}
+            className="hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-center mb-4">
-              <div className="bg-blue-500 rounded-lg p-3 mr-4">
-                <span className="text-white text-2xl">👥</span>
+              <div className="bg-purple-50 text-purple-600 rounded-lg p-3 mr-4">
+                <Users size={22} />
               </div>
-              <h3 className="text-2xl font-bold text-gray-800">User Management</h3>
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-1">
+                User Management <ArrowRight size={16} className="text-gray-300" />
+              </h3>
             </div>
-            <p className="text-gray-600">Create, edit, and manage system users</p>
-          </div>
+            <p className="text-gray-500 text-sm">Create, edit, and manage system users</p>
+          </Card>
 
-          <div
-            className="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow cursor-pointer"
+          <Card
             onClick={() => navigate('/admin/audit-logs')}
+            className="hover:shadow-md transition-shadow cursor-pointer"
           >
             <div className="flex items-center mb-4">
-              <div className="bg-orange-500 rounded-lg p-3 mr-4">
-                <span className="text-white text-2xl">📋</span>
+              <div className="bg-primary-50 text-primary-600 rounded-lg p-3 mr-4">
+                <ClipboardList size={22} />
               </div>
-              <h3 className="text-2xl font-bold text-gray-800">Audit Logs</h3>
+              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-1">
+                Audit Logs <ArrowRight size={16} className="text-gray-300" />
+              </h3>
             </div>
-            <p className="text-gray-600">View system activity and user actions</p>
-          </div>
+            <p className="text-gray-500 text-sm">View system activity and user actions</p>
+          </Card>
 
-          <div className="bg-white rounded-lg shadow-lg p-8 hover:shadow-xl transition-shadow cursor-pointer">
+          <Card className="opacity-70 cursor-not-allowed relative">
+            <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
+              Coming soon
+            </span>
             <div className="flex items-center mb-4">
-              <div className="bg-green-500 rounded-lg p-3 mr-4">
-                <span className="text-white text-2xl">⚙️</span>
+              <div className="bg-green-50 text-green-600 rounded-lg p-3 mr-4">
+                <Settings size={22} />
               </div>
-              <h3 className="text-2xl font-bold text-gray-800">Settings</h3>
+              <h3 className="text-lg font-bold text-gray-800">Settings</h3>
             </div>
-            <p className="text-gray-600">Configure system settings and rules</p>
-          </div>
+            <p className="text-gray-500 text-sm">Configure system settings and rules</p>
+          </Card>
         </div>
       </div>
     </div>

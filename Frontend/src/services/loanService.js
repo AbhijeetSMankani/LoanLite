@@ -1,229 +1,93 @@
 import axiosInstance from '../api/axiosInstance';
 
-// Mock loan applications data
-const MOCK_APPLICATIONS = [
-  {
-    id: '1',
-    applicantId: '1',
-    loanAmount: 50000,
-    loanTerm: 24,
-    purpose: 'Home Renovation',
-    income: 75000,
-    employmentStatus: 'Employed',
-    status: 'approved',
-    createdAt: '2026-08-01',
-    documents: [
-      { id: '1', name: 'ID Proof', type: 'pdf', status: 'verified' },
-      { id: '2', name: 'Income Certificate', type: 'pdf', status: 'verified' }
-    ]
-  },
-  {
-    id: '2',
-    applicantId: '1',
-    loanAmount: 30000,
-    loanTerm: 18,
-    purpose: 'Car Purchase',
-    income: 75000,
-    employmentStatus: 'Employed',
-    status: 'submitted',
-    createdAt: '2026-08-05',
-    documents: [
-      { id: '3', name: 'ID Proof', type: 'pdf', status: 'pending' }
-    ]
-  },
-  {
-    id: '3',
-    applicantId: '1',
-    loanAmount: 15000,
-    loanTerm: 12,
-    purpose: 'Personal Expenses',
-    income: 75000,
-    employmentStatus: 'Employed',
-    status: 'draft',
-    createdAt: '2026-08-10',
-    documents: []
-  },
-  {
-    id: '4',
-    applicantId: '1',
-    loanAmount: 100000,
-    loanTerm: 36,
-    purpose: 'Business Investment',
-    income: 75000,
-    employmentStatus: 'Employed',
-    status: 'rejected',
-    createdAt: '2026-07-20',
-    documents: [
-      { id: '5', name: 'Business Plan', type: 'pdf', status: 'rejected' }
-    ]
-  },
-  {
-    id: '5',
-    applicantId: '2',
-    loanAmount: 75000,
-    loanTerm: 24,
-    purpose: 'Education',
-    income: 85000,
-    employmentStatus: 'Employed',
-    status: 'in-review',
-    createdAt: '2026-08-08',
-    documents: [
-      { id: '6', name: 'College Admission', type: 'pdf', status: 'verified' }
-    ]
-  },
-  {
-    id: '6',
-    applicantId: '3',
-    loanAmount: 120000,
-    loanTerm: 48,
-    purpose: 'Property Purchase',
-    income: 120000,
-    employmentStatus: 'Employed',
-    status: 'pending-decision',
-    createdAt: '2026-08-03',
-    documents: [
-      { id: '7', name: 'Property Deed', type: 'pdf', status: 'verified' },
-      { id: '8', name: 'Bank Statement', type: 'pdf', status: 'verified' }
-    ]
+const currentUserId = () => {
+  try {
+    return JSON.parse(localStorage.getItem('user'))?.id;
+  } catch {
+    return undefined;
   }
-];
+};
+
+const paginate = (list, page, limit) => list.slice((page - 1) * limit, page * limit);
+
+const decisionStatusMap = { approve: 'approved', reject: 'rejected', refer: 'referred' };
 
 const loanService = {
-  // Create a new loan application
   createApplication: async (applicationData) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const newApp = {
-          id: Date.now().toString(),
-          applicantId: '1',
-          ...applicationData,
-          status: applicationData.status || 'draft',
-          createdAt: new Date().toISOString().split('T')[0],
-          documents: []
-        };
-        MOCK_APPLICATIONS.push(newApp);
-        resolve({ data: newApp });
-      }, 300);
+    const { data } = await axiosInstance.post('/loan-applications', {
+      applicant: { id: currentUserId() },
+      loanAmount: Number(applicationData.loanAmount) || null,
+      tenureMonths: Number(applicationData.loanTerm) || null,
+      purpose: applicationData.purpose,
+      declaredIncome: Number(applicationData.income) || null,
+      employment: applicationData.employment,
+      employmentDuration: Number(applicationData.employmentDuration) || null,
+      status: applicationData.status || 'draft',
     });
+    return { data };
   },
 
-  // Get all applications for the current user
   getMyApplications: async (page = 1, limit = 10) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const userApps = MOCK_APPLICATIONS.filter(app => app.applicantId === '1');
-        const paginated = userApps.slice((page - 1) * limit, page * limit);
-        resolve({ data: paginated });
-      }, 300);
+    const { data } = await axiosInstance.get('/loan-applications', {
+      params: { applicantId: currentUserId() },
     });
+    return { data: paginate(data, page, limit) };
   },
 
-  // Get single application details
   getApplicationById: async (applicationId) => {
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const app = MOCK_APPLICATIONS.find(a => a.id === applicationId);
-        if (app) {
-          resolve({ data: app });
-        } else {
-          reject(new Error('Application not found'));
-        }
-      }, 300);
-    });
+    const { data } = await axiosInstance.get(`/loan-applications/${applicationId}`);
+    return { data };
   },
 
-  // Update application (save draft)
-  updateApplication: async (applicationId, data) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const app = MOCK_APPLICATIONS.find(a => a.id === applicationId);
-        if (app) {
-          Object.assign(app, data);
-        }
-        resolve({ data: app });
-      }, 300);
-    });
+  updateApplication: async (applicationId, updateData) => {
+    const { data } = await axiosInstance.put(`/loan-applications/${applicationId}`, updateData);
+    return { data };
   },
 
-  // Submit application
   submitApplication: async (applicationId) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const app = MOCK_APPLICATIONS.find(a => a.id === applicationId);
-        if (app) {
-          app.status = 'submitted';
-        }
-        resolve({ data: app });
-      }, 300);
+    const { data } = await axiosInstance.put(`/loan-applications/${applicationId}`, {
+      status: 'submitted',
+      submittedAt: new Date().toISOString(),
     });
+    return { data };
   },
 
-  // Get applications for processor
   getApplicationsForProcessor: async (page = 1, limit = 10) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const processorApps = MOCK_APPLICATIONS.filter(app => 
-          ['submitted', 'in-review'].includes(app.status)
-        );
-        const paginated = processorApps.slice((page - 1) * limit, page * limit);
-        resolve({ data: paginated });
-      }, 300);
-    });
+    const { data } = await axiosInstance.get('/loan-applications');
+    return { data: paginate(data, page, limit) };
   },
 
-  // Get applications for underwriter
   getApplicationsForUnderwriter: async (page = 1, limit = 10) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const underwriterApps = MOCK_APPLICATIONS.filter(app =>
-          ['in-review', 'pending-decision'].includes(app.status)
-        );
-        const paginated = underwriterApps.slice((page - 1) * limit, page * limit);
-        resolve({ data: paginated });
-      }, 300);
-    });
+    const { data } = await axiosInstance.get('/loan-applications');
+    return { data: paginate(data, page, limit) };
   },
 
-  // Submit verification by processor
   submitVerification: async (applicationId, verificationData) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const app = MOCK_APPLICATIONS.find(a => a.id === applicationId);
-        if (app) {
-          app.status = 'in-review';
-        }
-        resolve({ data: app });
-      }, 300);
-    });
+    const { data } = await axiosInstance.put(`/loan-applications/${applicationId}`, verificationData);
+    return { data };
   },
 
-  // Make final decision by underwriter
   makeDecision: async (applicationId, decisionData) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const app = MOCK_APPLICATIONS.find(a => a.id === applicationId);
-        if (app) {
-          app.status = decisionData.decision;
-        }
-        resolve({ data: app });
-      }, 300);
+    const { data } = await axiosInstance.put(`/loan-applications/${applicationId}`, {
+      decision: decisionData.decision,
+      decisionComments: decisionData.comments,
+      status: decisionStatusMap[decisionData.decision] || decisionData.decision,
     });
+    return { data };
   },
 
-  // Get loan rules/suggestions
   getLoanRules: async (applicationId) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          data: {
-            creditScore: 750,
-            incomeVerification: 'verified',
-            debtToIncomeRatio: 0.35,
-            recommendation: 'APPROVE'
-          }
-        });
-      }, 300);
-    });
+    const { data: app } = await axiosInstance.get(`/loan-applications/${applicationId}`);
+    const debtToIncomeRatio =
+      app.emi && app.declaredIncome ? Math.round((app.emi / app.declaredIncome) * 10000) / 100 : null;
+    return {
+      data: {
+        creditScore: app.creditScore ?? null,
+        incomeVerification: app.verifiedIncome ? 'verified' : 'pending',
+        debtToIncomeRatio,
+        recommendation: app.recommendation || 'pending-decision',
+      },
+    };
   },
 };
 

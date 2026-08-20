@@ -1,34 +1,28 @@
 import React from 'react';
 
+const STATUS_MAP = {
+  draft: { classes: 'bg-gray-200 text-gray-700', label: 'Draft' },
+  pending: { classes: 'bg-amber-100 text-amber-700', label: 'Pending' },
+  submitted: { classes: 'bg-blue-100 text-blue-700', label: 'Submitted' },
+  'in-review': { classes: 'bg-amber-100 text-amber-700', label: 'In Review' },
+  verified: { classes: 'bg-teal-100 text-teal-700', label: 'Verified' },
+  'pending-decision': { classes: 'bg-purple-100 text-purple-700', label: 'Pending Decision' },
+  approved: { classes: 'bg-green-600 text-white', label: 'Approved' },
+  approve: { classes: 'bg-green-600 text-white', label: 'Approved' },
+  rejected: { classes: 'bg-red-600 text-white', label: 'Rejected' },
+  reject: { classes: 'bg-red-600 text-white', label: 'Rejected' },
+  referred: { classes: 'bg-primary-100 text-primary-700', label: 'Referred' },
+  refer: { classes: 'bg-primary-100 text-primary-700', label: 'Refer Back' },
+  withdrawn: { classes: 'bg-gray-200 text-gray-600', label: 'Withdrawn' },
+};
+
 const StatusBadge = ({ status }) => {
-  const statusClasses = {
-    draft: 'bg-gray-200 text-gray-800',
-    submitted: 'bg-blue-100 text-blue-800',
-    'in-review': 'bg-yellow-100 text-yellow-800',
-    'verified': 'bg-green-100 text-green-800',
-    'pending-decision': 'bg-purple-100 text-purple-800',
-    approved: 'bg-green-500 text-white',
-    rejected: 'bg-red-500 text-white',
-    referred: 'bg-orange-100 text-orange-800',
-  };
-
-  const displayText = {
-    draft: 'Draft',
-    submitted: 'Submitted',
-    'in-review': 'In Review',
-    'verified': 'Verified',
-    'pending-decision': 'Pending Decision',
-    approved: 'Approved',
-    rejected: 'Rejected',
-    referred: 'Referred',
-  };
-
-  const classes = statusClasses[status] || statusClasses.draft;
-  const text = displayText[status] || status;
+  const key = typeof status === 'string' ? status.toLowerCase() : status;
+  const entry = STATUS_MAP[key] || { classes: 'bg-gray-200 text-gray-700', label: status || 'Unknown' };
 
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-semibold inline-block ${classes}`}>
-      {text}
+    <span className={`px-3 py-1 rounded-full text-xs font-semibold inline-block whitespace-nowrap ${entry.classes}`}>
+      {entry.label}
     </span>
   );
 };

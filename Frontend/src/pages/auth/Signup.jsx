@@ -3,8 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
-import Loader from '../../components/Loader';
 import authService from '../../services/authService';
+import { Landmark } from 'lucide-react';
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -16,12 +16,11 @@ const Signup = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'applicant',
   });
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -30,8 +29,7 @@ const Signup = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validation
+
     if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
       setError('All fields are required');
       return;
@@ -55,11 +53,19 @@ const Signup = () => {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        role: 'applicant', // New users are always applicants
       });
-      
+
       login(response.user, response.token);
-      navigate('/applicant/dashboard');
+
+      // Role always comes from the database (via the login that follows
+      // signup), never from anything the signup form itself could set.
+      const roleRoutes = {
+        applicant: '/applicant/dashboard',
+        processor: '/processor/dashboard',
+        underwriter: '/underwriter/dashboard',
+        admin: '/admin/dashboard',
+      };
+      navigate(roleRoutes[response.user.role] || '/applicant/dashboard');
     } catch (err) {
       setError(err.message || 'Signup failed. Please try again.');
     } finally {
@@ -67,77 +73,71 @@ const Signup = () => {
     }
   };
 
-  if (loading) return <Loader fullScreen message="Creating account..." />;
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-100 to-yellow-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+    <div className="min-h-screen w-full bg-gradient-to-br from-primary-50 via-white to-amber-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-8 sm:p-10 w-full max-w-md border border-gray-100">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-orange-600 mb-2">LoanLite</h1>
-          <p className="text-gray-600">Create Your Account</p>
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-600 text-white mb-4">
+            <Landmark size={28} />
+          </div>
+          <h1 className="text-3xl font-extrabold text-gray-900 mb-1">LoanLite</h1>
+          <p className="text-gray-500 text-sm">Create your account</p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded">
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
               {error}
             </div>
           )}
 
-          <div className="mb-6">
-            <Input
-              label="Full Name"
-              name="name"
-              type="text"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Enter your full name"
-              required
-              disabled={loading}
-            />
-
-            <Input
-              label="Email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Enter your email"
-              required
-              disabled={loading}
-            />
-
-            <Input
-              label="Password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Enter password (min 6 characters)"
-              required
-              disabled={loading}
-            />
-
-            <Input
-              label="Confirm Password"
-              name="confirmPassword"
-              type="password"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="Confirm your password"
-              required
-              disabled={loading}
-            />
-          </div>
-
-          <Button
-            type="submit"
-            variant="primary"
+          <Input
+            label="Full Name"
+            name="name"
+            type="text"
+            value={formData.name}
+            onChange={handleChange}
+            placeholder="Enter your full name"
+            required
             disabled={loading}
-            className="w-full"
-          >
+          />
+
+          <Input
+            label="Email"
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            placeholder="Enter your email"
+            required
+            disabled={loading}
+          />
+
+          <Input
+            label="Password"
+            name="password"
+            type="password"
+            value={formData.password}
+            onChange={handleChange}
+            placeholder="Enter password (min 6 characters)"
+            required
+            disabled={loading}
+          />
+
+          <Input
+            label="Confirm Password"
+            name="confirmPassword"
+            type="password"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            placeholder="Confirm your password"
+            required
+            disabled={loading}
+          />
+
+          <Button type="submit" variant="primary" size="lg" loading={loading} className="w-full mt-2">
             {loading ? 'Creating Account...' : 'Create Account'}
           </Button>
         </form>
@@ -146,19 +146,16 @@ const Signup = () => {
         <div className="mt-6 text-center text-sm text-gray-600">
           <p>
             Already have an account?{' '}
-            <Link
-              to="/login"
-              className="text-orange-600 font-semibold hover:text-orange-700 no-underline"
-            >
+            <Link to="/login" className="text-primary-600 font-semibold hover:text-primary-700 no-underline">
               Login here
             </Link>
           </p>
         </div>
 
         {/* Info Box */}
-        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded text-xs text-blue-800">
-          <p className="font-semibold mb-1">Demo Account (for testing):</p>
-          <p>You can sign up with any details, or use existing demo accounts</p>
+        <div className="mt-6 p-4 bg-primary-50 border border-primary-100 rounded-lg text-xs text-primary-800">
+          <p className="font-semibold mb-1">New accounts sign up as Applicants</p>
+          <p>An Admin assigns Processor, Underwriter, or Admin access afterwards.</p>
         </div>
       </div>
     </div>

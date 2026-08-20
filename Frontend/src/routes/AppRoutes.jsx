@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Loader from '../components/Loader';
 
 // Pages
+import Landing from '../pages/Landing';
 import Login from '../pages/auth/Login';
 import Signup from '../pages/auth/Signup';
 import ApplicantDashboard from '../pages/applicant/Dashboard';
@@ -19,6 +20,13 @@ import LoanDecision from '../pages/underwriter/LoanDecision';
 import AdminDashboard from '../pages/admin/Dashboard';
 import Users from '../pages/admin/Users';
 import AuditLogs from '../pages/admin/AuditLogs';
+
+const ROLE_HOME = {
+  applicant: '/applicant/dashboard',
+  processor: '/processor/dashboard',
+  underwriter: '/underwriter/dashboard',
+  admin: '/admin/dashboard',
+};
 
 const ProtectedRoute = ({ children, requiredRole }) => {
   const { isAuthenticated, userRole, loading } = useAuth();
@@ -36,12 +44,46 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   return children;
 };
 
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, userRole, loading } = useAuth();
+
+  if (loading) return <Loader fullScreen message="Loading..." />;
+
+  if (isAuthenticated) {
+    return <Navigate to={ROLE_HOME[userRole] || '/login'} replace />;
+  }
+
+  return children;
+};
+
 const AppRoutes = () => {
   return (
     <Routes>
       {/* Public Routes */}
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
+      <Route
+        path="/"
+        element={
+          <PublicRoute>
+            <Landing />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/signup"
+        element={
+          <PublicRoute>
+            <Signup />
+          </PublicRoute>
+        }
+      />
 
       {/* Applicant Routes */}
       <Route
@@ -156,8 +198,7 @@ const AppRoutes = () => {
       />
 
       {/* Catch-all */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };

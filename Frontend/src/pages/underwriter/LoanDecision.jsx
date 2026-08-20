@@ -2,23 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Loader from '../../components/Loader';
 import Button from '../../components/Button';
-import Input from '../../components/Input';
 import StatusBadge from '../../components/StatusBadge';
+import Card from '../../components/Card';
+import EmptyState from '../../components/EmptyState';
 import loanService from '../../services/loanService';
+import { fullName } from '../../utils/role';
+import { ArrowLeft, CheckCircle2, XCircle, CornerUpLeft, AlertTriangle } from 'lucide-react';
 
 const LoanDecision = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [application, setApplication] = useState(null);
   const [rules, setRules] = useState(null);
   const [decision, setDecision] = useState('approve');
   const [comments, setComments] = useState('');
-
-  useEffect(() => {
-    fetchApplicationDetails();
-  }, [id]);
 
   const fetchApplicationDetails = async () => {
     try {
@@ -35,18 +35,19 @@ const LoanDecision = () => {
     }
   };
 
+  useEffect(() => {
+    fetchApplicationDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   const handleSubmitDecision = async () => {
     try {
       setLoading(true);
-      await loanService.makeDecision(id, {
-        decision,
-        comments,
-      });
-      alert(`Loan ${decision === 'approve' ? 'Approved' : 'Rejected'} successfully!`);
-      navigate('/underwriter/applications');
+      await loanService.makeDecision(id, { decision, comments });
+      setSuccess(`Application ${decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : 'referred back'} successfully.`);
+      setTimeout(() => navigate('/underwriter/applications'), 1500);
     } catch (err) {
       setError(err.message || 'Failed to submit decision');
-    } finally {
       setLoading(false);
     }
   };
@@ -55,160 +56,150 @@ const LoanDecision = () => {
 
   if (!application) {
     return (
-      <div className="p-8 text-center">
-        <p className="text-red-600 text-lg">Application not found</p>
+      <div className="p-8">
+        <EmptyState icon={AlertTriangle} variant="error" title="Application not found" />
       </div>
     );
   }
 
+  const decisionOptions = [
+    { value: 'approve', label: 'Approve', icon: CheckCircle2, color: 'text-green-600' },
+    { value: 'reject', label: 'Reject', icon: XCircle, color: 'text-red-600' },
+    { value: 'refer', label: 'Refer Back', icon: CornerUpLeft, color: 'text-primary-600' },
+  ];
+
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Button
-            variant="secondary"
-            onClick={() => navigate('/underwriter/applications')}
-            className="mb-4"
-          >
-            ← Back
+        <div className="mb-6">
+          <Button variant="secondary" size="sm" onClick={() => navigate('/underwriter/applications')} className="mb-4">
+            <ArrowLeft size={14} /> Back
           </Button>
-          <h1 className="text-3xl font-bold text-gray-800">Loan Decision</h1>
-          <p className="text-gray-600">Application #{application.id}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Loan Decision</h1>
+          <p className="text-gray-500 mt-1">Application #{application.id}</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            {error}
-          </div>
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>
+        )}
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{success}</div>
         )}
 
         {/* Application Summary */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">Application Details</h3>
+          <Card>
+            <h3 className="text-base font-bold text-gray-800 mb-4">Application Details</h3>
             <div className="space-y-3">
               <div>
-                <p className="text-gray-600 text-sm">Applicant</p>
-                <p className="text-lg font-semibold text-gray-800">{application.applicantName || 'N/A'}</p>
+                <p className="text-gray-500 text-xs">Applicant</p>
+                <p className="text-base font-semibold text-gray-800">{fullName(application.applicant)}</p>
               </div>
               <div>
-                <p className="text-gray-600 text-sm">Loan Amount</p>
-                <p className="text-lg font-semibold text-orange-600">₹{application.loanAmount?.toLocaleString()}</p>
+                <p className="text-gray-500 text-xs">Loan Amount</p>
+                <p className="text-base font-semibold text-primary-600">₹{application.loanAmount?.toLocaleString()}</p>
               </div>
               <div>
-                <p className="text-gray-600 text-sm">Loan Term</p>
-                <p className="text-lg font-semibold text-gray-800">{application.loanTerm} months</p>
+                <p className="text-gray-500 text-xs">Loan Term</p>
+                <p className="text-base font-semibold text-gray-800">{application.tenureMonths} months</p>
               </div>
               <div>
-                <p className="text-gray-600 text-sm">Monthly Income</p>
-                <p className="text-lg font-semibold text-gray-800">₹{application.income?.toLocaleString()}</p>
+                <p className="text-gray-500 text-xs">Monthly Income</p>
+                <p className="text-base font-semibold text-gray-800">₹{application.declaredIncome?.toLocaleString()}</p>
               </div>
             </div>
-          </div>
+          </Card>
 
-          {/* Rules/Suggestions */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h3 className="text-lg font-bold text-gray-800 mb-4">System Suggestions</h3>
+          <Card>
+            <h3 className="text-base font-bold text-gray-800 mb-4">System Suggestions</h3>
             {rules ? (
               <div className="space-y-3">
                 <div>
-                  <p className="text-gray-600 text-sm">Credit Score</p>
-                  <p className="text-lg font-semibold text-gray-800">{rules.creditScore || 'N/A'}</p>
+                  <p className="text-gray-500 text-xs">Credit Score</p>
+                  <p className="text-base font-semibold text-gray-800">{rules.creditScore || 'N/A'}</p>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-sm">Income Verification</p>
-                  <p className="text-lg font-semibold text-green-600">✓ Verified</p>
+                  <p className="text-gray-500 text-xs">Income Verification</p>
+                  <p
+                    className={`text-base font-semibold flex items-center gap-1 ${
+                      rules.incomeVerification === 'verified' ? 'text-green-600' : 'text-amber-600'
+                    }`}
+                  >
+                    <CheckCircle2 size={15} /> {rules.incomeVerification === 'verified' ? 'Verified' : 'Pending'}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-sm">Debt to Income Ratio</p>
-                  <p className="text-lg font-semibold text-gray-800">{rules.debtToIncomeRatio || 'N/A'}%</p>
+                  <p className="text-gray-500 text-xs">Debt to Income Ratio</p>
+                  <p className="text-base font-semibold text-gray-800">{rules.debtToIncomeRatio || 'N/A'}%</p>
                 </div>
                 <div>
-                  <p className="text-gray-600 text-sm">Recommendation</p>
+                  <p className="text-gray-500 text-xs mb-1">Recommendation</p>
                   <StatusBadge status={rules.recommendation || 'pending-decision'} />
                 </div>
               </div>
             ) : (
-              <p className="text-gray-600">No suggestions available</p>
+              <p className="text-gray-500 text-sm">No suggestions available</p>
             )}
-          </div>
+          </Card>
         </div>
 
         {/* Decision Section */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <h3 className="text-lg font-bold text-gray-800 mb-6">Make Your Decision</h3>
+        <Card className="mb-6">
+          <h3 className="text-base font-bold text-gray-800 mb-5">Make Your Decision</h3>
 
-          {/* Decision Options */}
           <div className="mb-6">
-            <p className="text-gray-700 font-semibold mb-3">Decision *</p>
-            <div className="flex gap-4">
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="radio"
-                  name="decision"
-                  value="approve"
-                  checked={decision === 'approve'}
-                  onChange={(e) => setDecision(e.target.value)}
-                  className="mr-2 w-4 h-4"
-                />
-                <span className="text-green-600 font-semibold">✓ Approve</span>
-              </label>
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="radio"
-                  name="decision"
-                  value="reject"
-                  checked={decision === 'reject'}
-                  onChange={(e) => setDecision(e.target.value)}
-                  className="mr-2 w-4 h-4"
-                />
-                <span className="text-red-600 font-semibold">✕ Reject</span>
-              </label>
-              <label className="flex items-center cursor-pointer">
-                <input
-                  type="radio"
-                  name="decision"
-                  value="refer"
-                  checked={decision === 'refer'}
-                  onChange={(e) => setDecision(e.target.value)}
-                  className="mr-2 w-4 h-4"
-                />
-                <span className="text-orange-600 font-semibold">→ Refer Back</span>
-              </label>
+            <p className="text-gray-700 font-semibold mb-3 text-sm">
+              Decision <span className="text-red-500">*</span>
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {decisionOptions.map(({ value, label, icon: Icon, color }) => (
+                <label
+                  key={value}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+                    decision === value ? 'border-primary-400 bg-primary-50' : 'border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="decision"
+                    value={value}
+                    checked={decision === value}
+                    onChange={(e) => setDecision(e.target.value)}
+                    className="sr-only"
+                  />
+                  <Icon size={16} className={color} />
+                  <span className={`font-semibold text-sm ${color}`}>{label}</span>
+                </label>
+              ))}
             </div>
           </div>
 
-          {/* Comments */}
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">
-              Comments
-              <span className="text-red-500 ml-1">*</span>
+            <label className="block text-gray-700 font-semibold mb-1.5 text-sm">
+              Comments <span className="text-red-500">*</span>
             </label>
             <textarea
               value={comments}
               onChange={(e) => setComments(e.target.value)}
               placeholder="Provide detailed comments about your decision"
               rows="4"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all"
             />
           </div>
-        </div>
+        </Card>
 
         {/* Action Buttons */}
-        <div className="flex gap-4 justify-end">
-          <Button
-            variant="secondary"
-            onClick={() => navigate('/underwriter/applications')}
-          >
+        <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
+          <Button variant="secondary" onClick={() => navigate('/underwriter/applications')}>
             Cancel
           </Button>
           <Button
             variant={decision === 'approve' ? 'success' : decision === 'reject' ? 'danger' : 'warning'}
             onClick={handleSubmitDecision}
-            disabled={loading || !comments}
+            loading={loading}
+            disabled={!comments}
           >
-            {loading ? 'Processing...' : `${decision.charAt(0).toUpperCase() + decision.slice(1)} Application`}
+            {decision.charAt(0).toUpperCase() + decision.slice(1)} Application
           </Button>
         </div>
       </div>
