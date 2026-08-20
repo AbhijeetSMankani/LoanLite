@@ -1,0 +1,9 @@
+Endpoint,Description,Status
+POST /api/auth/logout,No-op endpoint; logout is handled client-side by deleting the token (no server-side session/refresh-token state to revoke),Done
+POST /api/auth/refresh,Issue a new access token using a refresh token,Will Not Implement - using a single long-lived (1 day/1 week) access token instead of a short-lived access + refresh token pair; acceptable simplification for this capstone project
+GET /api/auth/me,Return the currently authenticated user's profile,Done
+POST /api/auth/forgot-password,Trigger a password reset email for a user; requires reset-token fields on the User entity,Will Implement Later
+POST /api/auth/reset-password,Complete a password reset using a reset token; depends on forgot-password infra,Will Implement Later
+POST /api/auth/change-password,Allow an authenticated user to change their own password,Done
+POST /api/auth/verify-email,Confirm a user's email ownership via a verification token; requires an emailVerified flag on User,Will Implement Later
+POST /api/auth/resend-verification,Resend the email verification link/token to the user,Will Implement Later

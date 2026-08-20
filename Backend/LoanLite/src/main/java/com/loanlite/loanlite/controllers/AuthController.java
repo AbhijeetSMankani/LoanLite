@@ -1,19 +1,25 @@
 package com.loanlite.loanlite.controllers;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.loanlite.loanlite.controllers.auth.AuthRequest;
 import com.loanlite.loanlite.controllers.auth.AuthResponse;
+import com.loanlite.loanlite.controllers.auth.ChangePasswordRequest;
 import com.loanlite.loanlite.controllers.auth.RegisterRequest;
 import com.loanlite.loanlite.controllers.auth.UserResponse;
 import com.loanlite.loanlite.entities.User;
 import com.loanlite.loanlite.security.jwt.JwtUtil;
 import com.loanlite.loanlite.services.UserService;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -46,6 +52,31 @@ public class AuthController {
         User created = userService.createUser(u);
         UserResponse resp = new UserResponse(created.getId(), created.getEmail(), created.getFirstName(), created.getLastName(), created.getRole());
         return ResponseEntity.status(HttpStatus.CREATED).body(resp);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout() {
+        return ResponseEntity.ok().build(); // Only Delete the token on the client side.
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<UserResponse> me(Authentication authentication) {
+        User user = userService.findByEmail(authentication.getName())
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + authentication.getName()));
+        UserResponse resp = new UserResponse(user.getId(), user.getEmail(), user.getFirstName(), user.getLastName(), user.getRole());
+        return ResponseEntity.ok(resp);
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(Authentication authentication, @RequestBody ChangePasswordRequest req) {
+        User user = userService.findByEmail(authentication.getName())
+                .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + authentication.getName()));
+        try {
+            userService.changePassword(user.getId(), req.getCurrentPassword(), req.getNewPassword());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok().build();
     }
 }
 
