@@ -15,4 +15,6 @@ public interface LoanApplicationDAO {
     List<LoanApplication> findByProcessorId(Long processorId);
 
     List<LoanApplication> findByUnderwriterId(Long underwriterId);
+
+    List<LoanApplication> search(String status, Long processorId, Long underwriterId, Long applicantId);
 }

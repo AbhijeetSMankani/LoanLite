@@ -35,10 +35,6 @@ public class LoanApplicationService {
                 .orElseThrow(() -> new RuntimeException("Loan application not found with id: " + id));
     }
 
-    public List<LoanApplication> listApplications() {
-        return loanApplicationRepository.findAll();
-    }
-
     public Optional<LoanApplication> findByApplicationNumber(String applicationNumber) {
         return loanApplicationRepository.findByApplicationNumber(applicationNumber);
     }
@@ -57,6 +53,10 @@ public class LoanApplicationService {
 
     public List<LoanApplication> findByUnderwriterId(Long underwriterId) {
         return loanApplicationRepository.findByUnderwriterId(underwriterId);
+    }
+
+    public List<LoanApplication> search(String status, Long processorId, Long underwriterId, Long applicantId) {
+        return loanApplicationRepository.search(status, processorId, underwriterId, applicantId);
     }
 
     @Transactional
