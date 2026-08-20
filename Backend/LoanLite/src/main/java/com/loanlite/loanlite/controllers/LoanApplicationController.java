@@ -1,33 +1,54 @@
 package com.loanlite.loanlite.controllers;
 
-import com.loanlite.loanlite.entities.Document;
-import com.loanlite.loanlite.entities.LoanApplication;
-import com.loanlite.loanlite.services.DocumentService;
-import com.loanlite.loanlite.services.LoanApplicationService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.loanlite.loanlite.entities.Document;
+import com.loanlite.loanlite.entities.LoanApplication;
+import com.loanlite.loanlite.services.DocumentService;
+import com.loanlite.loanlite.services.LoanApplicationService;
+
 @RestController
-@RequestMapping({"/api", "/api/loan-applications", "/api/applications"})
+@RequestMapping({"/api/loan-applications", "/api/applications"})
 public class LoanApplicationController {
     @Autowired
     private LoanApplicationService service;
 
     @Autowired
     private DocumentService documentService;
+
+    // Required applicant documents before a processor can complete verification.
+    private static final List<String> REQUIRED_DOCUMENT_TYPES = List.of(
+            "PAN_CARD",
+            "SALARY_SLIP",
+            "ADDRESS_PROOF"
+    );
 
     // POST /api/applications
     // Creates a new loan application and sets the initial state to Draft
@@ -45,14 +66,22 @@ public class LoanApplicationController {
     }
 
     // GET /api/applications
-    // Retrieves the applicant's own applications. If applicantId is supplied,
-    // it filters the list to only that applicant; otherwise returns all records.
+    // Returns applications, optionally filtered by any combination of status,
+    // processorId, underwriterId, and applicantId.
     @GetMapping
-    public ResponseEntity<List<LoanApplication>> list(@RequestParam(value = "applicantId", required = false) Long applicantId) {
-        if (applicantId != null) {
-            return ResponseEntity.ok(service.findByApplicantId(applicantId));
-        }
-        return ResponseEntity.ok(service.listApplications());
+    public ResponseEntity<List<LoanApplication>> list(
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Long processorId,
+            @RequestParam(required = false) Long underwriterId,
+            @RequestParam(required = false) Long applicantId) {
+        return ResponseEntity.ok(service.search(status, processorId, underwriterId, applicantId));
+    }
+
+    // GET /api/applications/{applicationId}
+    // Fetches the full application details for the processor to prepare the file review.
+    @GetMapping("/{id}")
+    public ResponseEntity<LoanApplication> getApplication(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getApplication(id));
     }
 
     // GET /api/applications/application-number/{applicationNumber}
@@ -64,34 +93,6 @@ public class LoanApplicationController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // GET /api/applications/applicant/{applicantId}
-    // Loads all applications belonging to one applicant.
-    @GetMapping("/applicant/{applicantId}")
-    public ResponseEntity<List<LoanApplication>> getByApplicantId(@PathVariable Long applicantId) {
-        return ResponseEntity.ok(service.findByApplicantId(applicantId));
-    }
-
-    // GET /api/applications/status/{status}
-    // Returns all applications filtered by status such as Draft, Submitted, Approved, or Withdrawn.
-    @GetMapping("/status/{status}")
-    public ResponseEntity<List<LoanApplication>> getByStatus(@PathVariable String status) {
-        return ResponseEntity.ok(service.findByStatus(status));
-    }
-
-    // GET /api/applications/processor/{processorId}
-    // Lists all applications assigned to a processor for review.
-    @GetMapping("/processor/{processorId}")
-    public ResponseEntity<List<LoanApplication>> getByProcessorId(@PathVariable Long processorId) {
-        return ResponseEntity.ok(service.findByProcessorId(processorId));
-    }
-
-    // GET /api/applications/underwriter/{underwriterId}
-    // Lists all applications assigned to an underwriter for final evaluation.
-    @GetMapping("/underwriter/{underwriterId}")
-    public ResponseEntity<List<LoanApplication>> getByUnderwriterId(@PathVariable Long underwriterId) {
-        return ResponseEntity.ok(service.findByUnderwriterId(underwriterId));
-    }
-
     // PUT /api/applications/{applicationId}
     // Saves the latest application form progress while the applicant continues editing it.
     @PutMapping("/{id}")
@@ -101,7 +102,7 @@ public class LoanApplicationController {
 
     // POST /api/applications/{applicationId}/submit
     // Submits the finished application and moves it from Draft to Submitted.
-    @PostMapping("/{id}/submit")
+    @PatchMapping("/submit/{id}")
     public ResponseEntity<LoanApplication> submitApplication(@PathVariable Long id) {
         LoanApplication existing = service.getApplication(id);
         existing.setStatus("Submitted");
@@ -114,7 +115,7 @@ public class LoanApplicationController {
 
     // PATCH /api/applications/{applicationId}/withdraw
     // Cancels the application and changes its lifecycle state to Withdrawn.
-    @PatchMapping("/{id}/withdraw")
+    @PatchMapping("/withdraw/{id}")
     public ResponseEntity<LoanApplication> withdrawApplication(@PathVariable Long id) {
         LoanApplication existing = service.getApplication(id);
         existing.setStatus("Withdrawn");
@@ -155,6 +156,31 @@ public class LoanApplicationController {
         document.setUploadedAt(LocalDateTime.now());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(documentService.createDocument(document));
+    }
+
+        // GET /api/documents/applications/{applicationId}
+    // Returns uploaded documents and highlights any required documents that are still missing.
+    @GetMapping("/{id}/documents")
+    public ResponseEntity<Map<String, Object>> getApplicationDocuments(@PathVariable Long id) {
+        List<Document> documents = documentService.findByApplicationId(id);
+
+        Set<String> uploadedTypes = documents.stream()
+                .map(Document::getDocumentType)
+                .filter(type -> type != null && !type.isBlank())
+                .map(type -> type.trim().toUpperCase(Locale.ROOT))
+                .collect(java.util.stream.Collectors.toSet());
+
+        List<String> missingRequiredDocuments = new ArrayList<>();
+        for (String required : REQUIRED_DOCUMENT_TYPES) {
+            if (!uploadedTypes.contains(required)) {
+                missingRequiredDocuments.add(required);
+            }
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("documents", documents);
+        payload.put("missingRequiredDocuments", missingRequiredDocuments);
+        return ResponseEntity.ok(payload);
     }
 
     // DELETE /api/applications/{applicationId}
