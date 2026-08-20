@@ -34,3 +34,7 @@ build/
 
 ### Uploads ###
 uploads/
+
+### EndpointTest.py run artifacts ###
+__pycache__/
+output*.txt
