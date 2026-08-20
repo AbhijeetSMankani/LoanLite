@@ -54,6 +54,9 @@ public class UserController {
         if (!isAdmin && !current.equals(existing.getEmail())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
+        if (current.equals(existing.getEmail()) && user.getRole() != null && !user.getRole().equals(existing.getRole())) {
+            throw new IllegalArgumentException("You cannot change your own role");
+        }
         return ResponseEntity.ok(service.updateUser(id, user));
     }
 
