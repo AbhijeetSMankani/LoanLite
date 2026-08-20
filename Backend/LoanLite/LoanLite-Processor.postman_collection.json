@@ -1,0 +1,144 @@
+{
+  "info": {
+    "name": "LoanLite - Processor",
+    "_postman_id": "b3f2a6f0-1c1a-4e4a-9a9a-processorflow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "applicationId", "value": "1" },
+    { "key": "documentId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Auth - Register",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"processor@loanlite.com\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"Pat\",\n  \"lastName\": \"Processor\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Auth - Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "if (res.token) { pm.collectionVariables.set('token', res.token); }"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"processor@loanlite.com\",\n  \"password\": \"Password123!\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get Work List",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": { "raw": "{{baseUrl}}/api/processor/work-list", "host": ["{{baseUrl}}"], "path": ["api", "processor", "work-list"] }
+      }
+    },
+    {
+      "name": "Claim Application",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/claim",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "applications", "{{applicationId}}", "claim"]
+        }
+      }
+    },
+    {
+      "name": "Get Application",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "applications", "{{applicationId}}"]
+        }
+      }
+    },
+    {
+      "name": "Get Application Documents",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/documents",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "applications", "{{applicationId}}", "documents"]
+        }
+      }
+    },
+    {
+      "name": "Update Document Status",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/documents/{{documentId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "applications", "{{applicationId}}", "documents", "{{documentId}}"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"verificationStatus\": \"VERIFIED\",\n  \"remarks\": \"Looks good\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Request Missing Documents",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/request-documents",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "applications", "{{applicationId}}", "request-documents"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"message\": \"Please upload your salary slip and address proof.\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Verify Application",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": {
+          "raw": "{{baseUrl}}/api/applications/{{applicationId}}/verify",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "applications", "{{applicationId}}", "verify"]
+        }
+      }
+    }
+  ]
+}

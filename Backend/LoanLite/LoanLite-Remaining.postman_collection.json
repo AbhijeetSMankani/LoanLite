@@ -1,0 +1,442 @@
+{
+  "info": {
+    "name": "LoanLite - Remaining Endpoints",
+    "_postman_id": "c7a4e2d0-2b2b-4f4b-9b9b-remainingflow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "applicantId", "value": "1" },
+    { "key": "applicationId", "value": "1" },
+    { "key": "applicationNumber", "value": "APP-1" },
+    { "key": "processorId", "value": "2" },
+    { "key": "underwriterId", "value": "3" },
+    { "key": "documentId", "value": "1" },
+    { "key": "historyId", "value": "1" },
+    { "key": "userId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"applicant@loanlite.com\",\n  \"password\": \"Password123!\",\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Applicant\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.token) { pm.collectionVariables.set('token', res.token); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"applicant@loanlite.com\",\n  \"password\": \"Password123!\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Loan Applications",
+      "item": [
+        {
+          "name": "Create Application",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/applications", "host": ["{{baseUrl}}"], "path": ["api", "applications"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"applicant\": { \"id\": {{applicantId}} },\n  \"loanAmount\": 500000,\n  \"tenureMonths\": 36,\n  \"declaredIncome\": 45000\n}"
+            }
+          }
+        },
+        {
+          "name": "List Applications (optional applicantId filter)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications?applicantId={{applicantId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applications"],
+              "query": [{ "key": "applicantId", "value": "{{applicantId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Get Application by Number",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/application-number/{{applicationNumber}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applications", "application-number", "{{applicationNumber}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Applications by Applicant",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/applicant/{{applicantId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applications", "applicant", "{{applicantId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Applications by Status",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/status/Submitted",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applications", "status", "Submitted"]
+            }
+          }
+        },
+        {
+          "name": "Get Applications by Processor",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/processor/{{processorId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applications", "processor", "{{processorId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Applications by Underwriter",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/underwriter/{{underwriterId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applications", "underwriter", "{{underwriterId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Application (save draft progress)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applications", "{{applicationId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"applicant\": { \"id\": {{applicantId}} },\n  \"loanAmount\": 600000,\n  \"tenureMonths\": 48,\n  \"declaredIncome\": 50000,\n  \"status\": \"Draft\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Submit Application",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applications", "{{applicationId}}", "submit"]
+            }
+          }
+        },
+        {
+          "name": "Withdraw Application",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}/withdraw",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applications", "{{applicationId}}", "withdraw"]
+            }
+          }
+        },
+        {
+          "name": "Upload Document (multipart)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}/documents",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applications", "{{applicationId}}", "documents"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": null },
+                { "key": "documentType", "value": "PAN_CARD", "type": "text" },
+                { "key": "remarks", "value": "Initial upload", "type": "text" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Application",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/applications/{{applicationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "applications", "{{applicationId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "item": [
+        {
+          "name": "Create Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/documents", "host": ["{{baseUrl}}"], "path": ["api", "documents"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"application\": { \"id\": {{applicationId}} },\n  \"documentType\": \"ADDRESS_PROOF\",\n  \"fileName\": \"address_proof.pdf\",\n  \"filePath\": \"uploads/applications/{{applicationId}}/address_proof.pdf\",\n  \"verificationStatus\": \"PENDING\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Document",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/{{documentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "{{documentId}}"]
+            }
+          }
+        },
+        {
+          "name": "List Documents",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/documents", "host": ["{{baseUrl}}"], "path": ["api", "documents"] }
+          }
+        },
+        {
+          "name": "Update Document",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/{{documentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "{{documentId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"application\": { \"id\": {{applicationId}} },\n  \"documentType\": \"ADDRESS_PROOF\",\n  \"fileName\": \"address_proof_v2.pdf\",\n  \"filePath\": \"uploads/applications/{{applicationId}}/address_proof_v2.pdf\",\n  \"verificationStatus\": \"VERIFIED\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Document",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/documents/{{documentId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "documents", "{{documentId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Application History",
+      "item": [
+        {
+          "name": "Create History Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/application-history", "host": ["{{baseUrl}}"], "path": ["api", "application-history"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"application\": { \"id\": {{applicationId}} },\n  \"user\": { \"id\": {{userId}} },\n  \"action\": \"SUBMITTED\",\n  \"details\": \"Application submitted by applicant\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get History Entry",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/application-history/{{historyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "application-history", "{{historyId}}"]
+            }
+          }
+        },
+        {
+          "name": "List History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/application-history", "host": ["{{baseUrl}}"], "path": ["api", "application-history"] }
+          }
+        },
+        {
+          "name": "Update History Entry",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/application-history/{{historyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "application-history", "{{historyId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"application\": { \"id\": {{applicationId}} },\n  \"user\": { \"id\": {{userId}} },\n  \"action\": \"SUBMITTED\",\n  \"details\": \"Updated remark\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete History Entry",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/application-history/{{historyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "application-history", "{{historyId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Create User (ADMIN only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@loanlite.com\",\n  \"passwordHash\": \"Password123!\",\n  \"firstName\": \"New\",\n  \"lastName\": \"User\",\n  \"phone\": \"9999999999\",\n  \"role\": \"APPLICANT\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get User (self or ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "List Users (ADMIN only)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/api/users", "host": ["{{baseUrl}}"], "path": ["api", "users"] }
+          }
+        },
+        {
+          "name": "Update User (self or ADMIN)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"applicant@loanlite.com\",\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Applicant\",\n  \"phone\": \"8888888888\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete User (ADMIN only)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
