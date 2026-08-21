@@ -17,6 +17,7 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -31,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.loanlite.loanlite.entities.Document;
 import com.loanlite.loanlite.entities.LoanApplication;
+import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
 import com.loanlite.loanlite.services.DocumentService;
 import com.loanlite.loanlite.services.LoanApplicationService;
 
@@ -43,6 +45,9 @@ public class LoanApplicationController {
     @Autowired
     private DocumentService documentService;
 
+    @Autowired
+    private LoanApplicationAccessGuard accessGuard;
+
     // Required applicant documents before a processor can complete verification.
     private static final List<String> REQUIRED_DOCUMENT_TYPES = List.of(
             "PAN_CARD",
@@ -51,13 +56,27 @@ public class LoanApplicationController {
     );
 
     // POST /api/applications
-    // Creates a new loan application and sets the initial state to Draft
-    // so the applicant can continue filling the form later.
+    // Creates a new loan application for the authenticated applicant and sets the initial
+    // state to Draft so they can continue filling the form later. USER only: the applicant is
+    // always the caller (any applicant id in the body is ignored), and status/recommendation/
+    // recommendationReason/decision/decisionComments/processor/underwriter/creditScore/
+    // verifiedIncome are all forced back to their initial values regardless of what the caller
+    // sends - those only get set later by staff-only actions (processor verify, underwriter
+    // decision), never by the applicant at creation time.
     @PostMapping
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<LoanApplication> create(@RequestBody LoanApplication app) {
-        if (app.getStatus() == null || app.getStatus().isBlank()) {
-            app.setStatus("Draft");
-        }
+        app.setApplicant(accessGuard.currentUser());
+        app.setStatus("Draft");
+        app.setRecommendation(null);
+        app.setRecommendationReason(null);
+        app.setDecision(null);
+        app.setDecisionComments(null);
+        app.setProcessor(null);
+        app.setUnderwriter(null);
+        app.setCreditScore(null);
+        app.setVerifiedIncome(null);
+
         if (app.getApplicationNumber() == null || app.getApplicationNumber().isBlank()) {
             app.setApplicationNumber("APP-" + System.currentTimeMillis());
         }
@@ -190,4 +209,4 @@ public class LoanApplicationController {
         service.deleteApplication(id);
         return ResponseEntity.noContent().build();
     }
-} 
+}
