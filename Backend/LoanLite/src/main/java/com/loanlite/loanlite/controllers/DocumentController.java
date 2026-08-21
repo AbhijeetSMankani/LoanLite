@@ -87,8 +87,13 @@ public class DocumentController {
     }
 
     // PUT /api/documents/{id}
-    // Replaces a document's fields, for example its verification status or remarks.
+    // Replaces a document's fields, for example its verification status or remarks. PROCESSOR,
+    // UNDERWRITER, and ADMIN only - not ownership-based, no applicant access at all. Applies
+    // verificationStatus/remarks/filePath/application verbatim with zero field stripping, so an
+    // applicant reaching this could self-certify their own document; they upload via
+    // POST /applications/{id}/documents instead, never through this endpoint.
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('PROCESSOR','UNDERWRITER','ADMIN')")
     public ResponseEntity<Document> update(@PathVariable Long id, @RequestBody Document doc) {
         return ResponseEntity.ok(service.updateDocument(id, doc));
     }
