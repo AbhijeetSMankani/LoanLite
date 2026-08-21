@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -32,6 +33,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.loanlite.loanlite.entities.Document;
 import com.loanlite.loanlite.entities.LoanApplication;
+import com.loanlite.loanlite.entities.User;
 import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
 import com.loanlite.loanlite.services.DocumentService;
 import com.loanlite.loanlite.services.LoanApplicationService;
@@ -86,30 +88,55 @@ public class LoanApplicationController {
 
     // GET /api/applications
     // Returns applications, optionally filtered by any combination of status,
-    // processorId, underwriterId, and applicantId.
+    // processorId, underwriterId, and applicantId. Non-admin callers are always scoped to their
+    // own applications regardless of what's requested: applicants are forced to their own
+    // applicantId, processors/underwriters to their own processorId/underwriterId. Whatever else
+    // the caller passes only narrows further from there, it never widens what's visible.
     @GetMapping
     public ResponseEntity<List<LoanApplication>> list(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long processorId,
             @RequestParam(required = false) Long underwriterId,
             @RequestParam(required = false) Long applicantId) {
+        User caller = accessGuard.currentUser();
+        if (!accessGuard.isAdmin(caller)) {
+            if (accessGuard.isProcessorRole(caller)) {
+                processorId = caller.getId();
+            } else if (accessGuard.isUnderwriterRole(caller)) {
+                underwriterId = caller.getId();
+            } else {
+                applicantId = caller.getId();
+            }
+        }
         return ResponseEntity.ok(service.search(status, processorId, underwriterId, applicantId));
     }
 
     // GET /api/applications/{applicationId}
     // Fetches the full application details for the processor to prepare the file review.
+    // Ownership-checked: owning applicant, assigned processor/underwriter, or admin only.
     @GetMapping("/{id}")
     public ResponseEntity<LoanApplication> getApplication(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getApplication(id));
+        LoanApplication app = service.getApplication(id);
+        if (!accessGuard.hasAccess(app, accessGuard.currentUser())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(app);
     }
 
     // GET /api/applications/application-number/{applicationNumber}
     // Finds an application using its unique application number.
+    // Ownership-checked: owning applicant, assigned processor/underwriter, or admin only.
     @GetMapping("/application-number/{applicationNumber}")
     public ResponseEntity<LoanApplication> getByApplicationNumber(@PathVariable String applicationNumber) {
-        return service.findByApplicationNumber(applicationNumber)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        Optional<LoanApplication> found = service.findByApplicationNumber(applicationNumber);
+        if (found.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        LoanApplication app = found.get();
+        if (!accessGuard.hasAccess(app, accessGuard.currentUser())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(app);
     }
 
     // PUT /api/applications/{applicationId}

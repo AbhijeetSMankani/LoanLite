@@ -31,6 +31,14 @@ public class LoanApplicationAccessGuard {
         return user != null && "ROLE_ADMIN".equals(user.getRole());
     }
 
+    public boolean isProcessorRole(User user) {
+        return user != null && "ROLE_PROCESSOR".equals(user.getRole());
+    }
+
+    public boolean isUnderwriterRole(User user) {
+        return user != null && "ROLE_UNDERWRITER".equals(user.getRole());
+    }
+
     public boolean isOwningApplicant(LoanApplication app, User user) {
         return app != null && user != null
                 && app.getApplicant() != null
