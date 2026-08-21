@@ -99,9 +99,22 @@ public class DocumentController {
     }
 
     // DELETE /api/documents/{id}
-    // Removes a document record from the system.
+    // Removes a document record from the system. The owning applicant may delete their own
+    // document only while it's still PENDING; once it's been passed forward or rejected (any
+    // other verificationStatus), only ADMIN may delete it - stops an applicant from erasing a
+    // REJECTED document and re-triggering verification as if it never existed.
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
+        Document doc = service.getDocument(id);
+        User caller = accessGuard.currentUser();
+
+        boolean allowed = accessGuard.isAdmin(caller)
+                || (accessGuard.isOwningApplicant(doc.getApplication(), caller)
+                    && "PENDING".equalsIgnoreCase(doc.getVerificationStatus()));
+        if (!allowed) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         service.deleteDocument(id);
         return ResponseEntity.noContent().build();
     }
