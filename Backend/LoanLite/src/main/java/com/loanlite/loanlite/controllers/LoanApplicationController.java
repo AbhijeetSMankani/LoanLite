@@ -167,9 +167,13 @@ public class LoanApplicationController {
 
     // POST /api/applications/{applicationId}/submit
     // Submits the finished application and moves it from Draft to Submitted.
+    // Owning applicant only - no staff/admin override, submitting is the applicant's call alone.
     @PatchMapping("/submit/{id}")
     public ResponseEntity<LoanApplication> submitApplication(@PathVariable Long id) {
         LoanApplication existing = service.getApplication(id);
+        if (!accessGuard.isOwningApplicant(existing, accessGuard.currentUser())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         existing.setStatus("Submitted");
         if (existing.getSubmittedAt() == null) {
             existing.setSubmittedAt(LocalDateTime.now());
@@ -180,9 +184,13 @@ public class LoanApplicationController {
 
     // PATCH /api/applications/{applicationId}/withdraw
     // Cancels the application and changes its lifecycle state to Withdrawn.
+    // Owning applicant only - no staff/admin override, withdrawing is the applicant's call alone.
     @PatchMapping("/withdraw/{id}")
     public ResponseEntity<LoanApplication> withdrawApplication(@PathVariable Long id) {
         LoanApplication existing = service.getApplication(id);
+        if (!accessGuard.isOwningApplicant(existing, accessGuard.currentUser())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         existing.setStatus("Withdrawn");
         existing.setUpdatedAt(LocalDateTime.now());
         return ResponseEntity.ok(service.updateApplication(id, existing));
