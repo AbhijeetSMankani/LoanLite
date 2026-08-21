@@ -2,8 +2,7 @@ import axiosInstance from '../api/axiosInstance';
 
 const documentService = {
   uploadDocument: async (applicationId, formData) => {
-    formData.append('applicationId', applicationId);
-    const { data } = await axiosInstance.post('/documents/upload', formData, {
+    const { data } = await axiosInstance.post(`/applications/${applicationId}/documents`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return { data };
@@ -21,8 +20,8 @@ const documentService = {
   },
 
   getUploadedDocuments: async (applicationId) => {
-    const { data } = await axiosInstance.get('/documents', { params: { applicationId } });
-    return { data };
+    const { data } = await axiosInstance.get(`/applications/${applicationId}/documents`);
+    return { data: data.documents || [], missingRequiredDocuments: data.missingRequiredDocuments || [] };
   },
 
   deleteDocument: async (documentId) => {
@@ -31,18 +30,11 @@ const documentService = {
   },
 
   verifyDocument: async (documentId, verificationData) => {
-    const { data } = await axiosInstance.put(`/documents/${documentId}`, {
-      verificationStatus: verificationData.verified ? 'approved' : 'rejected',
+    const { data } = await axiosInstance.patch(`/documents/${documentId}`, {
+      verificationStatus: verificationData.verified ? 'VERIFIED' : 'REJECTED',
       remarks: verificationData.notes,
     });
     return { data };
-  },
-
-  downloadDocument: async (documentId) => {
-    const { data } = await axiosInstance.get(`/documents/${documentId}/download`, {
-      responseType: 'blob',
-    });
-    return data;
   },
 };
 

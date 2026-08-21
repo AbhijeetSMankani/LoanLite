@@ -19,6 +19,8 @@ const ApplicationDetails = () => {
   const [documents, setDocuments] = useState([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
+  const [documentType, setDocumentType] = useState('OTHER');
+  const [remarks, setRemarks] = useState('');
 
   const fetchApplicationDetails = async () => {
     try {
@@ -40,20 +42,6 @@ const ApplicationDetails = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const downloadDocument = async (doc) => {
-    try {
-      const blob = await documentService.downloadDocument(doc.id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = doc.fileName;
-      link.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      setError(err.message || 'Failed to download document');
-    }
-  };
-
   const handleFileUpload = async () => {
     if (!uploadFile) {
       setError('Please select a file');
@@ -64,10 +52,13 @@ const ApplicationDetails = () => {
       setLoading(true);
       const formData = new FormData();
       formData.append('file', uploadFile);
-      formData.append('documentType', 'general');
+      formData.append('documentType', documentType);
+      if (remarks) formData.append('remarks', remarks);
 
       await documentService.uploadDocument(id, formData);
       setUploadFile(null);
+      setDocumentType('OTHER');
+      setRemarks('');
       setShowUploadModal(false);
       await fetchApplicationDetails();
     } catch (err) {
@@ -175,12 +166,6 @@ const ApplicationDetails = () => {
                   </span>
                   <div className="flex items-center gap-2 shrink-0">
                     <StatusBadge status={doc.verificationStatus} />
-                    <button
-                      onClick={() => downloadDocument(doc)}
-                      className="text-primary-600 hover:text-primary-700 text-xs font-semibold"
-                    >
-                      Download
-                    </button>
                   </div>
                 </div>
               ))}
@@ -194,6 +179,8 @@ const ApplicationDetails = () => {
           onClose={() => {
             setShowUploadModal(false);
             setUploadFile(null);
+            setDocumentType('OTHER');
+            setRemarks('');
           }}
           title="Upload Document"
           footer={
@@ -203,6 +190,8 @@ const ApplicationDetails = () => {
                 onClick={() => {
                   setShowUploadModal(false);
                   setUploadFile(null);
+                  setDocumentType('OTHER');
+                  setRemarks('');
                 }}
               >
                 Cancel
@@ -216,8 +205,33 @@ const ApplicationDetails = () => {
           <input
             type="file"
             onChange={(e) => setUploadFile(e.target.files[0])}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-primary-50 file:text-primary-700 file:font-semibold"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-primary-50 file:text-primary-700 file:font-semibold mb-4"
           />
+
+          <div className="mb-4">
+            <label className="block text-gray-700 font-semibold mb-1.5 text-sm">Document Type</label>
+            <select
+              value={documentType}
+              onChange={(e) => setDocumentType(e.target.value)}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all"
+            >
+              <option value="OTHER">Other</option>
+              <option value="PAN_CARD">PAN Card</option>
+              <option value="SALARY_SLIP">Salary Slip</option>
+              <option value="ADDRESS_PROOF">Address Proof</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 font-semibold mb-1.5 text-sm">Remarks (optional)</label>
+            <input
+              type="text"
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              placeholder="Add a note about this document"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all"
+            />
+          </div>
         </Modal>
       </div>
     </div>

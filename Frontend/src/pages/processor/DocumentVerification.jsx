@@ -144,7 +144,7 @@ const DocumentVerification = () => {
                   </div>
 
                   <div className="flex gap-2 shrink-0">
-                    {doc.verificationStatus === 'pending' || !doc.verificationStatus ? (
+                    {doc.verificationStatus?.toLowerCase() === 'pending' || !doc.verificationStatus ? (
                       <>
                         <Button
                           variant="success"
