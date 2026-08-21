@@ -47,7 +47,10 @@ public class DocumentController {
     // POST /api/documents
     // Creates a document record directly from a JSON body (metadata only, no file upload).
     // For uploading an actual file, use POST /api/applications/{id}/documents instead.
+    // ADMIN only: this persists the body verbatim (including verificationStatus), so anyone
+    // else could self-certify a document without going through the real upload+review flow.
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Document> create(@RequestBody Document doc) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createDocument(doc));
     }
