@@ -27,6 +27,7 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<User> get(@PathVariable Long id) {
         User u = service.getUser(id);
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -45,6 +46,7 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<User> update(@PathVariable Long id, @RequestBody User user) {
         // allow admin or owner to update
         User existing = service.getUser(id);
