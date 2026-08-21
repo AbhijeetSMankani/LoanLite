@@ -4,6 +4,7 @@ import com.loanlite.loanlite.entities.ApplicationHistory;
 import com.loanlite.loanlite.services.ApplicationHistoryService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,7 +18,10 @@ public class ApplicationHistoryController {
 
     // POST /api/application-history
     // Records a new audit log entry for an application, for example a status change or a decision.
+    // ADMIN only: no user should be writing history entries manually - this is a stand-in until
+    // task 12 automates history writes from the actions themselves (submit, verify, claim, etc).
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApplicationHistory> create(@RequestBody ApplicationHistory h) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.createHistory(h));
     }
@@ -38,14 +42,18 @@ public class ApplicationHistoryController {
 
     // PUT /api/application-history/{id}
     // Replaces the fields of an existing history entry, for example its action or details.
+    // ADMIN only, same reasoning as create().
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApplicationHistory> update(@PathVariable Long id, @RequestBody ApplicationHistory h) {
         return ResponseEntity.ok(service.updateHistory(id, h));
     }
 
     // DELETE /api/application-history/{id}
-    // Removes a history entry from the system.
+    // Removes a history entry from the system. ADMIN only - an audit trail that any user could
+    // delete from isn't an audit trail.
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.deleteHistory(id);
         return ResponseEntity.noContent().build();
