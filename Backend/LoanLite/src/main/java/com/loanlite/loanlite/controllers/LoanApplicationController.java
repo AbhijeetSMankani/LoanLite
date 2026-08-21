@@ -198,7 +198,8 @@ public class LoanApplicationController {
 
     // POST /api/applications/{applicationId}/documents
     // Uploads a multipart file such as PAN card, salary slip, or address proof
-    // and stores it against the application record.
+    // and stores it against the application record. Ownership-checked: owning applicant,
+    // assigned processor/underwriter, or admin only - same access rule as the reads in task 4.
     @PostMapping("/{id}/documents")
     public ResponseEntity<Document> uploadDocument(
             @PathVariable Long id,
@@ -206,11 +207,15 @@ public class LoanApplicationController {
             @RequestParam(value = "documentType", required = false, defaultValue = "OTHER") String documentType,
             @RequestParam(value = "remarks", required = false) String remarks) throws IOException {
 
+        LoanApplication application = service.getApplication(id);
+        if (!accessGuard.hasAccess(application, accessGuard.currentUser())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().build();
         }
 
-        LoanApplication application = service.getApplication(id);
         String originalFileName = file.getOriginalFilename() == null ? "document" : file.getOriginalFilename();
         Path uploadDir = Paths.get("uploads", "applications", String.valueOf(id));
         Files.createDirectories(uploadDir);
@@ -233,8 +238,14 @@ public class LoanApplicationController {
 
         // GET /api/documents/applications/{applicationId}
     // Returns uploaded documents and highlights any required documents that are still missing.
+    // Ownership-checked: owning applicant, assigned processor/underwriter, or admin only.
     @GetMapping("/{id}/documents")
     public ResponseEntity<Map<String, Object>> getApplicationDocuments(@PathVariable Long id) {
+        LoanApplication application = service.getApplication(id);
+        if (!accessGuard.hasAccess(application, accessGuard.currentUser())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         List<Document> documents = documentService.findByApplicationId(id);
 
         Set<String> uploadedTypes = documents.stream()
