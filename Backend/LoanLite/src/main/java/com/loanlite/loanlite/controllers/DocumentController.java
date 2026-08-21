@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.loanlite.loanlite.entities.Document;
 import com.loanlite.loanlite.entities.LoanApplication;
+import com.loanlite.loanlite.entities.User;
+import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
 import com.loanlite.loanlite.services.DocumentService;
 import com.loanlite.loanlite.services.LoanApplicationService;
 
@@ -32,9 +35,12 @@ import com.loanlite.loanlite.services.LoanApplicationService;
 public class DocumentController {
     @Autowired
     private DocumentService service;
-    
+
     @Autowired
     private LoanApplicationService loanApplicationService;
+
+    @Autowired
+    private LoanApplicationAccessGuard accessGuard;
 
         // Required applicant documents before a processor can complete verification.
     private static final List<String> REQUIRED_DOCUMENT_TYPES = List.of(
@@ -56,17 +62,28 @@ public class DocumentController {
     }
 
     // GET /api/documents/{id}
-    // Fetches a single document record by its id.
+    // Fetches a single document record by its id. Ownership-checked via the document's
+    // application: owning applicant, assigned processor/underwriter, or admin only.
     @GetMapping("/{id}")
     public ResponseEntity<Document> get(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getDocument(id));
+        Document doc = service.getDocument(id);
+        if (!accessGuard.hasAccess(doc.getApplication(), accessGuard.currentUser())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(doc);
     }
 
     // GET /api/documents
-    // Returns every document record in the system.
+    // Returns every document record the caller has access to: an applicant's own
+    // application(s), a processor/underwriter's assigned/claimed application(s), or
+    // everything for admin.
     @GetMapping
     public ResponseEntity<List<Document>> list() {
-        return ResponseEntity.ok(service.listDocuments());
+        User caller = accessGuard.currentUser();
+        List<Document> visible = service.listDocuments().stream()
+                .filter(doc -> accessGuard.hasAccess(doc.getApplication(), caller))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(visible);
     }
 
     // PUT /api/documents/{id}
@@ -84,7 +101,7 @@ public class DocumentController {
         return ResponseEntity.noContent().build();
     }
 
-    
+
 
 
     // PATCH /api/documents/{documentId}
@@ -112,7 +129,7 @@ public class DocumentController {
         }
 
         return ResponseEntity.ok(service.updateDocument(documentId, existing));
-    }    
+    }
 
 
     // PATCH /api/applications/{applicationId}/request-documents
