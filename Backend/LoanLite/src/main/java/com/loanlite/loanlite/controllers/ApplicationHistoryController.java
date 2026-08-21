@@ -1,18 +1,25 @@
 package com.loanlite.loanlite.controllers;
 
 import com.loanlite.loanlite.entities.ApplicationHistory;
+import com.loanlite.loanlite.entities.User;
+import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
 import com.loanlite.loanlite.services.ApplicationHistoryService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/application-history")
 public class ApplicationHistoryController {
     private final ApplicationHistoryService service;
+
+    @Autowired
+    private LoanApplicationAccessGuard accessGuard;
 
     public ApplicationHistoryController(ApplicationHistoryService service) { this.service = service; }
 
@@ -27,17 +34,28 @@ public class ApplicationHistoryController {
     }
 
     // GET /api/application-history/{id}
-    // Fetches a single history entry by its id.
+    // Fetches a single history entry by its id. Ownership-checked via the entry's application:
+    // owning applicant, assigned processor/underwriter, or admin only.
     @GetMapping("/{id}")
     public ResponseEntity<ApplicationHistory> get(@PathVariable Long id) {
-        return ResponseEntity.ok(service.getHistory(id));
+        ApplicationHistory entry = service.getHistory(id);
+        if (!accessGuard.hasAccess(entry.getApplication(), accessGuard.currentUser())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(entry);
     }
 
     // GET /api/application-history
-    // Returns every history entry across all applications.
+    // Returns every history entry the caller has access to: an applicant's own application's
+    // history, a processor/underwriter's assigned/claimed application's history, or everything
+    // for admin.
     @GetMapping
     public ResponseEntity<List<ApplicationHistory>> list() {
-        return ResponseEntity.ok(service.listHistory());
+        User caller = accessGuard.currentUser();
+        List<ApplicationHistory> visible = service.listHistory().stream()
+                .filter(entry -> accessGuard.hasAccess(entry.getApplication(), caller))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(visible);
     }
 
     // PUT /api/application-history/{id}
