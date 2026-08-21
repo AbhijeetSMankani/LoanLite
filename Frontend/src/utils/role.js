@@ -4,7 +4,11 @@
 // processor/underwriter on a loan application).
 export const stripRolePrefix = (role) => {
   if (!role) return role;
-  return role.startsWith('ROLE_') ? role.slice(5).toLowerCase() : role.toLowerCase();
+  const normalized = role.startsWith('ROLE_') ? role.slice(5).toLowerCase() : role.toLowerCase();
+  // The backend's /auth/register always persists new accounts as ROLE_USER
+  // (it has no concept of "applicant" at signup time) — that's this app's
+  // baseline self-serve role, so treat it as an applicant everywhere.
+  return normalized === 'user' ? 'applicant' : normalized;
 };
 
 export const fullName = (person) => {

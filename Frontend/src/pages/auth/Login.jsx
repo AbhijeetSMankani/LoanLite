@@ -41,9 +41,9 @@ const Login = () => {
         admin: '/admin/dashboard',
       };
 
-      navigate(roleRoutes[response.user.role] || '/login');
+      navigate(roleRoutes[response.user.role] || '/applicant/dashboard');
     } catch (err) {
-      setError(err.message || 'Login failed. Please try again.');
+      setError(err.response?.data?.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

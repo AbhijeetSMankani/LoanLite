@@ -7,7 +7,6 @@ import {
   ClipboardList,
   ShieldCheck,
   Gavel,
-  Users,
   History,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -19,7 +18,6 @@ const ICONS = {
   Applications: ClipboardList,
   'Document Verification': ShieldCheck,
   'Loan Decision': Gavel,
-  Users: Users,
   'Audit Logs': History,
 };
 
@@ -49,7 +47,6 @@ const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
     ],
     admin: [
       { label: 'Dashboard', path: '/admin/dashboard' },
-      { label: 'Users', path: '/admin/users' },
       { label: 'Audit Logs', path: '/admin/audit-logs' },
     ],
   };

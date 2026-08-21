@@ -4,7 +4,7 @@ import Loader from '../../components/Loader';
 import StatCard from '../../components/StatCard';
 import Card from '../../components/Card';
 import userService from '../../services/userService';
-import { Users, ClipboardList, Settings, ArrowRight } from 'lucide-react';
+import { Users, ClipboardList, Settings } from 'lucide-react';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -57,21 +57,6 @@ const AdminDashboard = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <Card
-            onClick={() => navigate('/admin/users')}
-            className="hover:shadow-md transition-shadow cursor-pointer"
-          >
-            <div className="flex items-center mb-4">
-              <div className="bg-purple-50 text-purple-600 rounded-lg p-3 mr-4">
-                <Users size={22} />
-              </div>
-              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-1">
-                User Management <ArrowRight size={16} className="text-gray-300" />
-              </h3>
-            </div>
-            <p className="text-gray-500 text-sm">Create, edit, and manage system users</p>
-          </Card>
-
-          <Card
             onClick={() => navigate('/admin/audit-logs')}
             className="hover:shadow-md transition-shadow cursor-pointer"
           >
@@ -79,9 +64,7 @@ const AdminDashboard = () => {
               <div className="bg-primary-50 text-primary-600 rounded-lg p-3 mr-4">
                 <ClipboardList size={22} />
               </div>
-              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-1">
-                Audit Logs <ArrowRight size={16} className="text-gray-300" />
-              </h3>
+              <h3 className="text-lg font-bold text-gray-800">Audit Logs</h3>
             </div>
             <p className="text-gray-500 text-sm">View system activity and user actions</p>
           </Card>

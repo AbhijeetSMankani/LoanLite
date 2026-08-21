@@ -1,48 +1,50 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import authService from '../services/authService';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(null);
 
-  // Initialize auth state from localStorage
+  // The token lives in an httpOnly cookie now — JS can't read it to decide
+  // "am I logged in?" on page load, so ask the server directly instead.
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
-    
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    const rehydrate = async () => {
+      try {
+        const me = await authService.getCurrentUser();
+        setUser(me);
+        localStorage.setItem('user', JSON.stringify(me));
+      } catch {
+        setUser(null);
+        localStorage.removeItem('user');
+      } finally {
+        setLoading(false);
+      }
+    };
+    rehydrate();
   }, []);
 
-  const login = (userData, authToken) => {
+  const login = (userData) => {
     setUser(userData);
-    setToken(authToken);
-    localStorage.setItem('token', authToken);
     localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const logout = () => {
+    authService.logout().catch(() => {});
     setUser(null);
-    setToken(null);
-    localStorage.removeItem('token');
     localStorage.removeItem('user');
   };
 
-  const isAuthenticated = !!token && !!user;
+  const isAuthenticated = !!user;
   const userRole = user?.role;
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      token, 
-      loading, 
-      login, 
-      logout, 
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      logout,
       isAuthenticated,
       userRole
     }}>

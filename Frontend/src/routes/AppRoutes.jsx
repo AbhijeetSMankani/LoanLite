@@ -5,6 +5,7 @@ import Loader from '../components/Loader';
 
 // Pages
 import Landing from '../pages/Landing';
+import Unauthorized from '../pages/Unauthorized';
 import Login from '../pages/auth/Login';
 import Signup from '../pages/auth/Signup';
 import ApplicantDashboard from '../pages/applicant/Dashboard';
@@ -18,7 +19,6 @@ import UnderwriterDashboard from '../pages/underwriter/Dashboard';
 import UnderwriterApplications from '../pages/underwriter/Applications';
 import LoanDecision from '../pages/underwriter/LoanDecision';
 import AdminDashboard from '../pages/admin/Dashboard';
-import Users from '../pages/admin/Users';
 import AuditLogs from '../pages/admin/AuditLogs';
 
 const ROLE_HOME = {
@@ -50,7 +50,7 @@ const PublicRoute = ({ children }) => {
   if (loading) return <Loader fullScreen message="Loading..." />;
 
   if (isAuthenticated) {
-    return <Navigate to={ROLE_HOME[userRole] || '/login'} replace />;
+    return <Navigate to={ROLE_HOME[userRole] || '/applicant/dashboard'} replace />;
   }
 
   return children;
@@ -84,6 +84,7 @@ const AppRoutes = () => {
           </PublicRoute>
         }
       />
+      <Route path="/unauthorized" element={<Unauthorized />} />
 
       {/* Applicant Routes */}
       <Route
@@ -177,14 +178,6 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute requiredRole="admin">
             <AdminDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/users"
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <Users />
           </ProtectedRoute>
         }
       />

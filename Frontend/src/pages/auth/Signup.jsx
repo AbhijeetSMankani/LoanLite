@@ -57,17 +57,11 @@ const Signup = () => {
 
       login(response.user, response.token);
 
-      // Role always comes from the database (via the login that follows
-      // signup), never from anything the signup form itself could set.
-      const roleRoutes = {
-        applicant: '/applicant/dashboard',
-        processor: '/processor/dashboard',
-        underwriter: '/underwriter/dashboard',
-        admin: '/admin/dashboard',
-      };
-      navigate(roleRoutes[response.user.role] || '/applicant/dashboard');
+      // Signup always creates an applicant — only an Admin can promote
+      // someone to processor/underwriter/admin afterwards.
+      navigate('/applicant/dashboard');
     } catch (err) {
-      setError(err.message || 'Signup failed. Please try again.');
+      setError(err.response?.data?.message || 'Signup failed. Please try again.');
     } finally {
       setLoading(false);
     }
