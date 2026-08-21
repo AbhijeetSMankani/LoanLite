@@ -257,8 +257,10 @@ public class LoanApplicationController {
     }
 
     // DELETE /api/applications/{applicationId}
-    // Removes an application record from the system.
+    // Removes an application record from the system. ADMIN only - this is a hard delete with
+    // no status guard, not something an applicant or staff member should be able to trigger.
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         service.deleteApplication(id);
         return ResponseEntity.noContent().build();
