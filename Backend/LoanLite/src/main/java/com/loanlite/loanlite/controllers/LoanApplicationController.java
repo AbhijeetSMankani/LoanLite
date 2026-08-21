@@ -140,9 +140,28 @@ public class LoanApplicationController {
     }
 
     // PUT /api/applications/{applicationId}
-    // Saves the latest application form progress while the applicant continues editing it.
+    // Saves the latest application form progress while the applicant continues editing it, or
+    // lets assigned staff update details. Ownership-checked via the access-check helper. The
+    // owning applicant may only update while the application is still in Draft - once
+    // submitted they withdraw and create a new application instead of editing this one - and
+    // even in Draft they cannot change status directly through this endpoint, only through
+    // submit/withdraw. Staff (assigned processor/underwriter, or admin) can update at any status.
     @PutMapping("/{id}")
     public ResponseEntity<LoanApplication> update(@PathVariable Long id, @RequestBody LoanApplication app) {
+        LoanApplication existing = service.getApplication(id);
+        User caller = accessGuard.currentUser();
+
+        if (!accessGuard.hasAccess(existing, caller)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        if (accessGuard.isOwningApplicant(existing, caller)) {
+            if (!"Draft".equalsIgnoreCase(existing.getStatus())) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            app.setStatus(null);
+        }
+
         return ResponseEntity.ok(service.updateApplication(id, app));
     }
 
