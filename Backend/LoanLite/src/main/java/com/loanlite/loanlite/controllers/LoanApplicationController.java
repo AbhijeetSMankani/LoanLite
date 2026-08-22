@@ -165,6 +165,17 @@ public class LoanApplicationController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
             app.setStatus(null);
+            // Staff-only fields: reject caller-supplied changes by copying back whatever
+            // existing already has, rather than nulling - a legitimate re-save shouldn't erase
+            // fields the applicant never touched (unlike status, which is always controller-set).
+            app.setRecommendation(existing.getRecommendation());
+            app.setRecommendationReason(existing.getRecommendationReason());
+            app.setDecision(existing.getDecision());
+            app.setDecisionComments(existing.getDecisionComments());
+            app.setProcessor(existing.getProcessor());
+            app.setUnderwriter(existing.getUnderwriter());
+            app.setCreditScore(existing.getCreditScore());
+            app.setVerifiedIncome(existing.getVerifiedIncome());
         }
 
         // Fixed interest rate applies to every caller, staff included - nobody sets this
