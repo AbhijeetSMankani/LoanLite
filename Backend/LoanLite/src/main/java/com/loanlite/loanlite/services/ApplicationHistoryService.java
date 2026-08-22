@@ -3,6 +3,8 @@ package com.loanlite.loanlite.services;
 import com.loanlite.loanlite.DAO.ApplicationHistoryDAO;
 import com.loanlite.loanlite.repository.ApplicationHistoryRepository;
 import com.loanlite.loanlite.entities.ApplicationHistory;
+import com.loanlite.loanlite.entities.LoanApplication;
+import com.loanlite.loanlite.entities.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,20 @@ public class ApplicationHistoryService {
         if (h.getCreatedAt() == null) {
             h.setCreatedAt(LocalDateTime.now());
         }
+        return applicationHistoryRepository.save(h);
+    }
+
+    // Called directly from controller actions (submit, withdraw, claim, verify,
+    // document status change) to record an audit entry as a side effect of that
+    // action - not through the ADMIN-only HTTP endpoint above, which stays
+    // locked down to manual/administrative writes only.
+    public ApplicationHistory log(LoanApplication application, User user, String action, String details) {
+        ApplicationHistory h = new ApplicationHistory();
+        h.setApplication(application);
+        h.setUser(user);
+        h.setAction(action);
+        h.setDetails(details);
+        h.setCreatedAt(LocalDateTime.now());
         return applicationHistoryRepository.save(h);
     }
 

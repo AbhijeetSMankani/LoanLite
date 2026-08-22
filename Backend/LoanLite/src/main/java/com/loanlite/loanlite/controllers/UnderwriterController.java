@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.loanlite.loanlite.entities.LoanApplication;
 import com.loanlite.loanlite.entities.User;
 import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
+import com.loanlite.loanlite.services.ApplicationHistoryService;
 import com.loanlite.loanlite.services.LoanApplicationService;
 
 @RestController
@@ -27,6 +28,9 @@ public class UnderwriterController {
 
     @Autowired
     private LoanApplicationAccessGuard accessGuard;
+
+    @Autowired
+    private ApplicationHistoryService historyService;
 
     // GET /api/underwriter/work-list
     // Returns applications waiting for an underwriter, i.e. those the processor has marked Ready for Underwriter.
@@ -51,6 +55,9 @@ public class UnderwriterController {
         existing.setUnderwriter(underwriter);
         existing.setStatus("In Underwriting Review");
         existing.setUpdatedAt(LocalDateTime.now());
-        return ResponseEntity.ok(loanApplicationService.updateApplication(applicationId, existing));
+        LoanApplication updated = loanApplicationService.updateApplication(applicationId, existing);
+        historyService.log(updated, underwriter, "UNDERWRITER_CLAIMED",
+                "Underwriter claimed the application for underwriting review.");
+        return ResponseEntity.ok(updated);
     }
 }

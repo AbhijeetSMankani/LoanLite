@@ -27,6 +27,7 @@ import com.loanlite.loanlite.entities.Document;
 import com.loanlite.loanlite.entities.LoanApplication;
 import com.loanlite.loanlite.entities.User;
 import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
+import com.loanlite.loanlite.services.ApplicationHistoryService;
 import com.loanlite.loanlite.services.DocumentService;
 import com.loanlite.loanlite.services.LoanApplicationService;
 
@@ -41,6 +42,9 @@ public class DocumentController {
 
     @Autowired
     private LoanApplicationAccessGuard accessGuard;
+
+    @Autowired
+    private ApplicationHistoryService historyService;
 
         // Required applicant documents before a processor can complete verification.
     private static final List<String> REQUIRED_DOCUMENT_TYPES = List.of(
@@ -146,7 +150,15 @@ public class DocumentController {
             existing.setRemarks(payload.get("remarks"));
         }
 
-        return ResponseEntity.ok(service.updateDocument(documentId, existing));
+        Document updated = service.updateDocument(documentId, existing);
+        String newStatus = updated.getVerificationStatus();
+        if ("VERIFIED".equalsIgnoreCase(newStatus) || "REJECTED".equalsIgnoreCase(newStatus)) {
+            String action = "VERIFIED".equalsIgnoreCase(newStatus) ? "DOCUMENT_VERIFIED" : "DOCUMENT_REJECTED";
+            String details = "Document '" + updated.getFileName() + "' (" + updated.getDocumentType()
+                    + ") marked " + newStatus.toUpperCase(Locale.ROOT) + ".";
+            historyService.log(updated.getApplication(), accessGuard.currentUser(), action, details);
+        }
+        return ResponseEntity.ok(updated);
     }
 
 

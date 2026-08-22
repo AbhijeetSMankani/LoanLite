@@ -35,6 +35,7 @@ import com.loanlite.loanlite.entities.Document;
 import com.loanlite.loanlite.entities.LoanApplication;
 import com.loanlite.loanlite.entities.User;
 import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
+import com.loanlite.loanlite.services.ApplicationHistoryService;
 import com.loanlite.loanlite.services.DocumentService;
 import com.loanlite.loanlite.services.LoanApplicationService;
 
@@ -49,6 +50,9 @@ public class LoanApplicationController {
 
     @Autowired
     private LoanApplicationAccessGuard accessGuard;
+
+    @Autowired
+    private ApplicationHistoryService historyService;
 
     // Required applicant documents before a processor can complete verification.
     private static final List<String> REQUIRED_DOCUMENT_TYPES = List.of(
@@ -171,7 +175,8 @@ public class LoanApplicationController {
     @PatchMapping("/submit/{id}")
     public ResponseEntity<LoanApplication> submitApplication(@PathVariable Long id) {
         LoanApplication existing = service.getApplication(id);
-        if (!accessGuard.isOwningApplicant(existing, accessGuard.currentUser())) {
+        User caller = accessGuard.currentUser();
+        if (!accessGuard.isOwningApplicant(existing, caller)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         existing.setStatus("Submitted");
@@ -179,7 +184,9 @@ public class LoanApplicationController {
             existing.setSubmittedAt(LocalDateTime.now());
         }
         existing.setUpdatedAt(LocalDateTime.now());
-        return ResponseEntity.ok(service.updateApplication(id, existing));
+        LoanApplication updated = service.updateApplication(id, existing);
+        historyService.log(updated, caller, "SUBMITTED", "Application submitted for processing.");
+        return ResponseEntity.ok(updated);
     }
 
     // PATCH /api/applications/{applicationId}/withdraw
@@ -188,12 +195,15 @@ public class LoanApplicationController {
     @PatchMapping("/withdraw/{id}")
     public ResponseEntity<LoanApplication> withdrawApplication(@PathVariable Long id) {
         LoanApplication existing = service.getApplication(id);
-        if (!accessGuard.isOwningApplicant(existing, accessGuard.currentUser())) {
+        User caller = accessGuard.currentUser();
+        if (!accessGuard.isOwningApplicant(existing, caller)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         existing.setStatus("Withdrawn");
         existing.setUpdatedAt(LocalDateTime.now());
-        return ResponseEntity.ok(service.updateApplication(id, existing));
+        LoanApplication updated = service.updateApplication(id, existing);
+        historyService.log(updated, caller, "WITHDRAWN", "Application withdrawn by applicant.");
+        return ResponseEntity.ok(updated);
     }
 
     // POST /api/applications/{applicationId}/documents

@@ -5,6 +5,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import java.time.LocalDateTime;
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.loanlite.loanlite.entities.User;
 import com.loanlite.loanlite.entities.LoanApplication;
 
@@ -42,6 +43,15 @@ public class ApplicationHistory {
 
     public LoanApplication getApplication() { return application; }
     public void setApplication(LoanApplication application) { this.application = application; }
+
+    // application itself is @JsonBackReference'd out of every response (needed to stop
+    // infinite recursion with LoanApplication.applicationHistory), which left no way for a
+    // caller to tell which application a history entry belongs to. Exposing just the id here
+    // is the minimal fix - callers need this to correlate an entry to its application at all.
+    @JsonProperty("applicationId")
+    public Long getApplicationId() {
+        return application != null ? application.getId() : null;
+    }
 
     public User getUser() { return user; }
     public void setUser(User user) { this.user = user; }

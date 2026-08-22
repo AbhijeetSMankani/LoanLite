@@ -8,8 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,9 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.loanlite.loanlite.entities.Document;
 import com.loanlite.loanlite.entities.LoanApplication;
 import com.loanlite.loanlite.entities.User;
+import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
+import com.loanlite.loanlite.services.ApplicationHistoryService;
 import com.loanlite.loanlite.services.DocumentService;
 import com.loanlite.loanlite.services.LoanApplicationService;
-import com.loanlite.loanlite.services.UserService;
 
 @RestController
 @RequestMapping("/api/processor")
@@ -34,7 +33,10 @@ public class ProcessorController {
     private DocumentService documentService;
 
     @Autowired
-    private UserService userService;
+    private LoanApplicationAccessGuard accessGuard;
+
+    @Autowired
+    private ApplicationHistoryService historyService;
 
     // Required applicant documents before a processor can complete verification.
     private static final List<String> REQUIRED_DOCUMENT_TYPES = List.of(
@@ -61,18 +63,14 @@ public class ProcessorController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(existing);
         }
 
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || authentication.getName() == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        User processor = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("Processor not found for email: " + authentication.getName()));
+        User processor = accessGuard.currentUser();
 
         existing.setProcessor(processor);
         existing.setStatus("In Review");
         existing.setUpdatedAt(LocalDateTime.now());
-        return ResponseEntity.ok(loanApplicationService.updateApplication(applicationId, existing));
+        LoanApplication updated = loanApplicationService.updateApplication(applicationId, existing);
+        historyService.log(updated, processor, "PROCESSOR_CLAIMED", "Processor claimed the application for review.");
+        return ResponseEntity.ok(updated);
     }
 
 
@@ -123,6 +121,9 @@ public class ProcessorController {
         existing.setRecommendationReason(reason);
         existing.setUpdatedAt(LocalDateTime.now());
 
-        return ResponseEntity.ok(loanApplicationService.updateApplication(applicationId, existing));
+        LoanApplication updated = loanApplicationService.updateApplication(applicationId, existing);
+        historyService.log(updated, accessGuard.currentUser(), "PROCESSOR_VERIFIED",
+                "Recommendation: " + recommendation + " - " + reason);
+        return ResponseEntity.ok(updated);
     }
 }

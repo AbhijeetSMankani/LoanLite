@@ -122,7 +122,7 @@ auth DTOs below use a field literally called `password`).
   createdAt: string,
   updatedAt: string,
   documents: Document[],            // nested, always present
-  applicationHistory: ApplicationHistory[]  // nested, always present but nothing writes to it automatically yet (§7)
+  applicationHistory: ApplicationHistory[]  // nested; now written automatically as a side effect of submit/withdraw/claim/verify/document-status actions (§3.5)
 }
 ```
 
@@ -144,7 +144,9 @@ auth DTOs below use a field literally called `password`).
 ```ts
 {
   id: number,
-  application: LoanApplication | null,
+  // NOT `application` - that field is stripped from every response (Jackson back-reference,
+  // needed to avoid infinite recursion with LoanApplication.applicationHistory). Use this instead:
+  applicationId: number | null,
   user: User | null,
   action: string | null,
   details: string | null,
@@ -223,22 +225,30 @@ exists; the button working today doesn't mean the access rule you expect is actu
 
 ### 3.5 `ApplicationHistoryController` - `/api/application-history`
 
-**No `@PreAuthorize` on any of these 5 endpoints** - covered only by the global `authenticated()` rule.
-Any authenticated user of any role can create/read/update/delete **any** history entry for **any**
-application (`preAuthorizeTodo.csv` tasks 10/11, both "Not Started"). Additionally, nothing in the
-backend writes these automatically yet (task 12, "Will Implement Later") - so today, if the frontend
-wants an audit trail at all, it would have to call `POST /api/application-history` itself on every
-status-changing action, which is known to be the wrong long-term design (see §7). **Recommendation:
-don't build frontend write-flows against this controller** - treat it as read-only/display-only until
-task 12 lands server-side.
+Updated: this section was stale (`preAuthorizeTodo.csv` tasks 10/11 landed after this doc's original
+pass). Write endpoints (`POST`/`PUT`/`DELETE`) are `ROLE_ADMIN` only - not open to every authenticated
+user. Reads (`GET` by id, `GET` list) are ownership-scoped via the same access-guard pattern as every
+other controller: owning applicant, assigned processor/underwriter, or admin only; the list endpoint
+has no `applicationId` query param, so a non-admin client gets back every entry it has access to across
+*all* of its own applications and has to filter client-side.
 
-| Method & Path | Request Body | Success Response |
-|---|---|---|
-| `POST /api/application-history` | Full `ApplicationHistory` JSON: `{ application: {id}, user: {id}, action, details }` | `201` created entry. |
-| `GET /api/application-history/{id}` | none | `200` entry. `404` (JSON) if missing. |
-| `GET /api/application-history` | none | `200` every entry, unfiltered - no `applicationId` query param exists to scope this. |
-| `PUT /api/application-history/{id}` | Partial JSON, null-safe merge (same pattern as other update methods - check `ApplicationHistoryService` if you need exact merge semantics) | `200` updated entry. |
-| `DELETE /api/application-history/{id}` | none | `204` no content. |
+The frontend should **not** call `POST /api/application-history` itself anymore (`featuresTodo.csv`
+task 1, now done) - the backend writes history entries automatically as a side effect of these actions,
+attributed to the caller: `LoanApplicationController.submitApplication()`/`withdrawApplication()`
+(`action: "SUBMITTED"`/`"WITHDRAWN"`), `ProcessorController.claimApplication()`/`verifyApplication()`
+(`"PROCESSOR_CLAIMED"`/`"PROCESSOR_VERIFIED"`, the latter's `details` carrying the recommendation +
+reason), `UnderwriterController.claimApplication()` (`"UNDERWRITER_CLAIMED"`), and
+`DocumentController.updateDocumentStatus()` (`"DOCUMENT_VERIFIED"`/`"DOCUMENT_REJECTED"`, only logged
+when the resulting `verificationStatus` is exactly `VERIFIED` or `REJECTED`). `action` strings above are
+this implementation's choice, not a fixed enum enforced anywhere - don't assume the set is closed.
+
+| Method & Path | Access | Request Body | Success Response |
+|---|---|---|---|
+| `POST /api/application-history` | `ROLE_ADMIN` only | Full `ApplicationHistory` JSON: `{ application: {id}, user: {id}, action, details }` | `201` created entry. Manual writes are a stopgap for admin use only now that real actions log themselves automatically. |
+| `GET /api/application-history/{id}` | Owning applicant / assigned processor or underwriter / admin | none | `200` entry. `403` if caller lacks access. `404` (JSON) if missing. |
+| `GET /api/application-history` | Any authenticated user, results scoped to what they can access | none | `200` entries the caller has access to (own applications for an applicant, assigned/claimed for staff, everything for admin) - no `applicationId` query param, filter client-side. |
+| `PUT /api/application-history/{id}` | `ROLE_ADMIN` only | Partial JSON, null-safe merge (same pattern as other update methods - check `ApplicationHistoryService` if you need exact merge semantics) | `200` updated entry. |
+| `DELETE /api/application-history/{id}` | `ROLE_ADMIN` only | none | `204` no content. |
 
 ### 3.6 `ProcessorController` - `/api/processor`
 
@@ -275,8 +285,8 @@ strings you pick are not currently read or validated by anything server-side.
 
 | Role | Can do |
 |---|---|
-| `ROLE_USER` (applicant) | Register/login/own profile. Create/view/edit-while-Draft/submit/withdraw **their own** applications only. Upload documents to any application id (gap, §3.3). View/edit/delete any document (gap, §3.4). Read/write any application-history entry (gap, §3.5). |
-| `ROLE_PROCESSOR` | Everything a normal authenticated user can reach via the gaps above, **plus** work-list/claim/verify/request-documents/update-document-status under `/api/processor` and `/api/documents`. Sees only applications where they're the assigned processor via `GET /api/applications` (list is scoped), but can still read/write *any* application by id directly since `/api/documents/*` and `/api/application-history/*` aren't ownership-checked. |
+| `ROLE_USER` (applicant) | Register/login/own profile. Create/view/edit-while-Draft/submit/withdraw **their own** applications only. Upload documents to any application id (gap, §3.3). View/edit/delete any document (gap, §3.4). Read (not write) their own applications' history entries - writes are `ROLE_ADMIN` only (§3.5). |
+| `ROLE_PROCESSOR` | Everything a normal authenticated user can reach via the gaps above, **plus** work-list/claim/verify/request-documents/update-document-status under `/api/processor` and `/api/documents`. Sees only applications where they're the assigned processor via `GET /api/applications` (list is scoped), but can still read/write *any* application by id directly since `/api/documents/*` aren't ownership-checked (application-history reads *are* ownership-scoped, §3.5). |
 | `ROLE_UNDERWRITER` | Same pattern as processor, for `/api/underwriter` work-list/claim. No dedicated decision endpoint (§3.7). |
 | `ROLE_ADMIN` | Full access everywhere: only role that can create/list/delete users, delete applications, and create documents/history directly. Cannot create a loan application via `POST /api/applications` (role check is literally `hasRole('USER')`, not "not staff"). |
 
@@ -306,7 +316,8 @@ If you're porting an existing frontend rather than building fresh, these are alr
 
 - Refresh tokens (`missingEndpoint.csv`): not implemented by design - single long-lived (1h) access token.
 - Forgot/reset password, email verification (`missingEndpoint.csv`): "Will Implement Later", no backend support at all.
-- Document/application-history ownership checks (§3.4, §3.5): currently wide open to any authenticated user.
-- Application-history automation (§3.5): nothing writes it automatically yet; treat as read-only/display.
+- Document ownership checks (§3.4): still wide open to any authenticated user (`DocumentController.update`
+  and the per-document `PATCH .../{documentId}` status endpoint have no assigned-processor check yet).
+  Application-history ownership (§3.5) is already locked down, and history now writes itself automatically.
 - Underwriter decision endpoint (§3.7): doesn't exist; only the generic PUT is available.
 - Document download/view and a correctly-named upload route (§5).
