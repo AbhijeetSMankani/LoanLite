@@ -627,11 +627,14 @@ else:
         "claim task-5 application (processor)",
     )
 
-    call("PUT", f"/applications/{task5_app_id}", token=processor2_token, json={"interestRate": 9.5},
+    # verifiedIncome, not interestRate, proves the write actually persists here - interestRate
+    # is force-set to a fixed backend constant regardless of caller input as of
+    # todo/featuresTodo.csv task 3, so it's no longer a usable passthrough-persistence probe.
+    call("PUT", f"/applications/{task5_app_id}", token=processor2_token, json={"verifiedIncome": 42000},
          expect=403, label="unassigned processor2 updates task-5 application (should be forbidden)")
-    r = call("PUT", f"/applications/{task5_app_id}", token=processor_token, json={"interestRate": 9.5},
+    r = call("PUT", f"/applications/{task5_app_id}", token=processor_token, json={"verifiedIncome": 42000},
               expect=200, label="assigned processor updates task-5 application after submit")
-    record(r.ok and float(r.json().get("interestRate", 0)) == 9.5, "interestRate update actually persisted")
+    record(r.ok and float(r.json().get("verifiedIncome", 0)) == 42000, "verifiedIncome update actually persisted")
 
     r = call("PUT", f"/applications/{task5_app_id}", token=admin_token,
               json={"underwriter": {"id": underwriter_id}}, expect=200,

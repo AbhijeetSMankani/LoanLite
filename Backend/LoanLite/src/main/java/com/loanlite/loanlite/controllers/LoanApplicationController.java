@@ -82,6 +82,7 @@ public class LoanApplicationController {
         app.setUnderwriter(null);
         app.setCreditScore(null);
         app.setVerifiedIncome(null);
+        app.setInterestRate(LoanApplicationService.FIXED_ANNUAL_INTEREST_RATE);
 
         if (app.getApplicationNumber() == null || app.getApplicationNumber().isBlank()) {
             app.setApplicationNumber("APP-" + System.currentTimeMillis());
@@ -165,6 +166,10 @@ public class LoanApplicationController {
             }
             app.setStatus(null);
         }
+
+        // Fixed interest rate applies to every caller, staff included - nobody sets this
+        // per-application, unlike the ownership-scoped field stripping above.
+        app.setInterestRate(LoanApplicationService.FIXED_ANNUAL_INTEREST_RATE);
 
         return ResponseEntity.ok(service.updateApplication(id, app));
     }
