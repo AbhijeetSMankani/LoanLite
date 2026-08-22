@@ -16,6 +16,9 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -109,11 +112,12 @@ public class LoanApplicationController {
     // applicantId, processors/underwriters to their own processorId/underwriterId. Whatever else
     // the caller passes only narrows further from there, it never widens what's visible.
     @GetMapping
-    public ResponseEntity<List<LoanApplication>> list(
+    public ResponseEntity<Page<LoanApplication>> list(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) Long processorId,
             @RequestParam(required = false) Long underwriterId,
-            @RequestParam(required = false) Long applicantId) {
+            @RequestParam(required = false) Long applicantId,
+            @PageableDefault(size = 20) Pageable pageable) {
         User caller = accessGuard.currentUser();
         if (!accessGuard.isAdmin(caller)) {
             if (accessGuard.isProcessorRole(caller)) {
@@ -124,7 +128,7 @@ public class LoanApplicationController {
                 applicantId = caller.getId();
             }
         }
-        return ResponseEntity.ok(service.search(status, processorId, underwriterId, applicantId));
+        return ResponseEntity.ok(service.search(status, processorId, underwriterId, applicantId, pageable));
     }
 
     // GET /api/applications/{applicationId}

@@ -95,6 +95,15 @@ def response_snippet(resp, limit=300):
     return text[:limit] + ("..." if len(text) > limit else "")
 
 
+def page_content(resp):
+    """The 6 list endpoints paginated under featuresTodo.csv task 11 now return
+    Spring Data's Page<T> JSON shape ({content: [...], totalElements, ...})
+    instead of a bare array - unwrap it here so call sites can keep treating
+    the result as a plain list."""
+    body = resp.json()
+    return body.get("content", []) if isinstance(body, dict) else body
+
+
 def exists(path, token):
     r = requests.get(f"{BASE}{path}", headers=auth(token), timeout=TIMEOUT)
     return r.status_code == 200
@@ -208,14 +217,16 @@ def history_for_application(app_id, token):
     filter exists in the controller), so this fetches everything the caller
     can see and filters client-side - same pattern TempTest.py uses for
     DocumentController.list()."""
-    r = call("GET", "/application-history", token=token, expect=200,
+    # Paginated since featuresTodo.csv task 11 - a large enough size to comfortably cover a
+    # single test run's entries without needing real pagination here.
+    r = call("GET", "/application-history", token=token, params={"size": 200}, expect=200,
              label=f"list application-history to find entries for application {app_id}")
     if not r.ok:
         return []
     # ApplicationHistory.application is @JsonBackReference'd out of the response
     # (needed to avoid infinite recursion with LoanApplication.applicationHistory) - the
     # flat "applicationId" field is what's actually usable here.
-    return [h for h in r.json() if h.get("applicationId") == app_id]
+    return [h for h in page_content(r) if h.get("applicationId") == app_id]
 
 
 def cleanup_application(app_id, admin_user, doc_ids=None):

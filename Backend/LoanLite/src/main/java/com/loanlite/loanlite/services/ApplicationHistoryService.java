@@ -6,6 +6,8 @@ import com.loanlite.loanlite.entities.ApplicationHistory;
 import com.loanlite.loanlite.entities.LoanApplication;
 import com.loanlite.loanlite.entities.User;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,8 +46,8 @@ public class ApplicationHistoryService {
                 .orElseThrow(() -> new RuntimeException("Application history not found with id: " + id));
     }
 
-    public List<ApplicationHistory> listHistory() {
-        return applicationHistoryRepository.findAll();
+    public Page<ApplicationHistory> listVisibleTo(Long callerId, boolean isAdmin, Pageable pageable) {
+        return applicationHistoryRepository.findVisibleTo(callerId, isAdmin, pageable);
     }
 
     public List<ApplicationHistory> findByApplicationId(Long applicationId) {

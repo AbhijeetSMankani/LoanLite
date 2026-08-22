@@ -4,6 +4,8 @@ import com.loanlite.loanlite.DAO.DocumentDAO;
 import com.loanlite.loanlite.repository.DocumentRepository;
 import com.loanlite.loanlite.entities.Document;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,8 +30,8 @@ public class DocumentService {
                 .orElseThrow(() -> new RuntimeException("Document not found with id: " + id));
     }
 
-    public List<Document> listDocuments() {
-        return documentRepository.findAll();
+    public Page<Document> listVisibleTo(Long callerId, boolean isAdmin, Pageable pageable) {
+        return documentRepository.findVisibleTo(callerId, isAdmin, pageable);
     }
 
     public List<Document> findByApplicationId(Long applicationId) {

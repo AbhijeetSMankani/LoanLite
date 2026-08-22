@@ -2,7 +2,11 @@ package com.loanlite.loanlite.services;
 
 import com.loanlite.loanlite.repository.LoanApplicationRepository;
 import com.loanlite.loanlite.entities.LoanApplication;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,6 +14,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -77,8 +82,8 @@ public class LoanApplicationService {
         return loanApplicationRepository.findByApplicantId(applicantId);
     }
 
-    public List<LoanApplication> findByStatus(String status) {
-        return loanApplicationRepository.findByStatus(status);
+    public Page<LoanApplication> findByStatus(String status, Pageable pageable) {
+        return loanApplicationRepository.findByStatus(status, pageable);
     }
 
     public List<LoanApplication> findByProcessorId(Long processorId) {
@@ -89,8 +94,21 @@ public class LoanApplicationService {
         return loanApplicationRepository.findByUnderwriterId(underwriterId);
     }
 
-    public List<LoanApplication> search(String status, Long processorId, Long underwriterId, Long applicantId) {
-        return loanApplicationRepository.search(status, processorId, underwriterId, applicantId);
+    // Filters here are independently optional (any subset may be null), unlike findByStatus()'s
+    // single fixed filter above - a Specification composes the WHERE clause dynamically and gives
+    // Spring Data the matching COUNT query for free, instead of hand-building two near-duplicate
+    // JPQL strings (one with LIMIT/OFFSET, one for COUNT) the way this used to work.
+    public Page<LoanApplication> search(String status, Long processorId, Long underwriterId, Long applicantId,
+                                         Pageable pageable) {
+        Specification<LoanApplication> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (status != null) predicates.add(cb.equal(root.get("status"), status));
+            if (processorId != null) predicates.add(cb.equal(root.get("processor").get("id"), processorId));
+            if (underwriterId != null) predicates.add(cb.equal(root.get("underwriter").get("id"), underwriterId));
+            if (applicantId != null) predicates.add(cb.equal(root.get("applicant").get("id"), applicantId));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        return loanApplicationRepository.findAll(spec, pageable);
     }
 
     @Transactional

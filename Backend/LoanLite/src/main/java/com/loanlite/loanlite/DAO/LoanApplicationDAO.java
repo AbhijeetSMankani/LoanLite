@@ -11,13 +11,9 @@ public interface LoanApplicationDAO {
 
     List<LoanApplication> findByApplicantId(Long applicantId);
 
-    List<LoanApplication> findByStatus(String status);
-
     List<LoanApplication> findByProcessorId(Long processorId);
 
     List<LoanApplication> findByUnderwriterId(Long underwriterId);
-
-    List<LoanApplication> search(String status, Long processorId, Long underwriterId, Long applicantId);
 
     // Atomic conditional claim: single UPDATE ... WHERE id = ? AND status = ?, returns the
     // number of rows changed (0 or 1). Used instead of read-check-then-save to close the claim

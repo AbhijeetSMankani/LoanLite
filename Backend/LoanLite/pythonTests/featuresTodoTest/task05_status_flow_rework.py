@@ -59,7 +59,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 from common import (  # noqa: E402
     call, record, section, skip, guarded, setup_users, create_application,
-    upload_document, cleanup_application, print_summary,
+    upload_document, cleanup_application, print_summary, page_content,
 )
 
 # --- assumed status strings (the rename this task performs) ---
@@ -169,7 +169,7 @@ else:
 
     r = call("GET", "/underwriter/work-list", token=users.underwriter.token, expect=200,
               label="underwriter reads work-list")
-    record(r.ok and any(a["id"] == app_a for a in r.json()),
+    record(r.ok and any(a["id"] == app_a for a in page_content(r)),
            f"application appears in underwriter work-list once status is '{STATUS_VERIFIED}'")
 
     guarded(

@@ -98,6 +98,15 @@ def response_snippet(resp, limit=300):
     return text[:limit] + ("..." if len(text) > limit else "")
 
 
+def page_content(resp):
+    """The 6 list endpoints paginated under featuresTodo.csv task 11 now return
+    Spring Data's Page<T> JSON shape ({content: [...], totalElements, ...})
+    instead of a bare array - unwrap it here so call sites can keep treating
+    the result as a plain list."""
+    body = resp.json()
+    return body.get("content", []) if isinstance(body, dict) else body
+
+
 def exists(path, token):
     r = requests.get(f"{BASE}{path}", headers=auth(token), timeout=TIMEOUT)
     return r.status_code == 200
@@ -361,7 +370,7 @@ else:
     r = call("GET", "/underwriter/work-list", token=underwriter_token, expect=200,
               label="underwriter reads work-list")
     if r.ok:
-        record(any(a["id"] == task2_app_id for a in r.json()), "task-2 application appears in the underwriter work-list")
+        record(any(a["id"] == task2_app_id for a in page_content(r)), "task-2 application appears in the underwriter work-list")
 
     call("POST", f"/underwriter/claim/{task2_app_id}", expect=401,
          label="unauthenticated claims as underwriter (should be unauthorized)")
@@ -500,14 +509,14 @@ else:
 
     # --- list(): non-admin callers are always scoped to their own, regardless of params ---
     r = call("GET", "/applications", token=applicant_token, expect=200, label="applicant lists applications")
-    record(r.ok and any(a["id"] == task4_app_id for a in r.json()),
+    record(r.ok and any(a["id"] == task4_app_id for a in page_content(r)),
            "task-4 application appears in the owning applicant's list")
     r = call("GET", "/applications", token=applicant2_token, expect=200, label="applicant2 lists applications")
-    record(r.ok and not any(a["id"] == task4_app_id for a in r.json()),
+    record(r.ok and not any(a["id"] == task4_app_id for a in page_content(r)),
            "task-4 application does not appear in an unrelated applicant's list")
     r = call("GET", "/applications", token=applicant2_token, params={"applicantId": applicant_id}, expect=200,
               label="applicant2 lists applications, trying to impersonate applicantId in the query")
-    record(r.ok and not any(a["id"] == task4_app_id for a in r.json()),
+    record(r.ok and not any(a["id"] == task4_app_id for a in page_content(r)),
            "applicantId query param can't be used to see someone else's applications - forced to the caller")
     call("GET", "/applications", expect=401, label="unauthenticated lists applications (should be unauthorized)")
 
@@ -532,10 +541,10 @@ else:
     call("GET", f"/applications/{task4_app_id}", token=processor2_token, expect=403,
          label="unassigned processor2 reads task-4 application (should be forbidden)")
     r = call("GET", "/applications", token=processor_token, expect=200, label="assigned processor lists applications")
-    record(r.ok and any(a["id"] == task4_app_id for a in r.json()),
+    record(r.ok and any(a["id"] == task4_app_id for a in page_content(r)),
            "task-4 application appears in the assigned processor's list")
     r = call("GET", "/applications", token=processor2_token, expect=200, label="unassigned processor2 lists applications")
-    record(r.ok and not any(a["id"] == task4_app_id for a in r.json()),
+    record(r.ok and not any(a["id"] == task4_app_id for a in page_content(r)),
            "task-4 application does not appear in an unassigned processor's list")
 
     for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
@@ -577,14 +586,14 @@ else:
     call("GET", f"/applications/{task4_app_id}", token=underwriter2_token, expect=403,
          label="unassigned underwriter2 reads task-4 application (should be forbidden)")
     r = call("GET", "/applications", token=underwriter_token, expect=200, label="assigned underwriter lists applications")
-    record(r.ok and any(a["id"] == task4_app_id for a in r.json()),
+    record(r.ok and any(a["id"] == task4_app_id for a in page_content(r)),
            "task-4 application appears in the assigned underwriter's list")
     r = call("GET", "/applications", token=underwriter2_token, expect=200, label="unassigned underwriter2 lists applications")
-    record(r.ok and not any(a["id"] == task4_app_id for a in r.json()),
+    record(r.ok and not any(a["id"] == task4_app_id for a in page_content(r)),
            "task-4 application does not appear in an unassigned underwriter's list")
 
     r = call("GET", "/applications", token=admin_token, expect=200, label="admin lists applications")
-    record(r.ok and any(a["id"] == task4_app_id for a in r.json()), "task-4 application appears in the admin's list")
+    record(r.ok and any(a["id"] == task4_app_id for a in page_content(r)), "task-4 application appears in the admin's list")
 
     for doc_id in task4_doc_ids:
         guarded(
@@ -923,13 +932,13 @@ else:
 
     call("GET", "/documents", expect=401, label="unauthenticated lists documents (should be unauthorized)")
     r = call("GET", "/documents", token=applicant2_token, expect=200, label="applicant2 lists documents")
-    record(r.ok and not any(d["id"] == task9_doc_id for d in r.json()),
+    record(r.ok and not any(d["id"] == task9_doc_id for d in page_content(r)),
            "task-9 document does not appear in an unrelated applicant's document list")
     r = call("GET", "/documents", token=applicant_token, expect=200, label="owning applicant lists documents")
-    record(r.ok and any(d["id"] == task9_doc_id for d in r.json()),
+    record(r.ok and any(d["id"] == task9_doc_id for d in page_content(r)),
            "task-9 document appears in the owning applicant's document list")
     r = call("GET", "/documents", token=admin_token, expect=200, label="admin lists documents")
-    record(r.ok and any(d["id"] == task9_doc_id for d in r.json()),
+    record(r.ok and any(d["id"] == task9_doc_id for d in page_content(r)),
            "task-9 document appears in the admin's document list")
 
     for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
@@ -960,10 +969,10 @@ else:
     call("GET", f"/documents/{task9_doc_id}", token=processor2_token, expect=403,
          label="unassigned processor2 reads task-9 document (should be forbidden)")
     r = call("GET", "/documents", token=processor_token, expect=200, label="assigned processor lists documents")
-    record(r.ok and any(d["id"] == task9_doc_id for d in r.json()),
+    record(r.ok and any(d["id"] == task9_doc_id for d in page_content(r)),
            "task-9 document appears in the assigned processor's document list")
     r = call("GET", "/documents", token=processor2_token, expect=200, label="unassigned processor2 lists documents")
-    record(r.ok and not any(d["id"] == task9_doc_id for d in r.json()),
+    record(r.ok and not any(d["id"] == task9_doc_id for d in page_content(r)),
            "task-9 document does not appear in an unassigned processor's document list")
 
     # verifyApplication() now requires every required document to be individually VERIFIED,
@@ -994,10 +1003,10 @@ else:
     call("GET", f"/documents/{task9_doc_id}", token=underwriter2_token, expect=403,
          label="unassigned underwriter2 reads task-9 document (should be forbidden)")
     r = call("GET", "/documents", token=underwriter_token, expect=200, label="assigned underwriter lists documents")
-    record(r.ok and any(d["id"] == task9_doc_id for d in r.json()),
+    record(r.ok and any(d["id"] == task9_doc_id for d in page_content(r)),
            "task-9 document appears in the assigned underwriter's document list")
     r = call("GET", "/documents", token=underwriter2_token, expect=200, label="unassigned underwriter2 lists documents")
-    record(r.ok and not any(d["id"] == task9_doc_id for d in r.json()),
+    record(r.ok and not any(d["id"] == task9_doc_id for d in page_content(r)),
            "task-9 document does not appear in an unassigned underwriter's document list")
 
     for doc_id in task9_doc_ids:
@@ -1261,15 +1270,15 @@ else:
          label="unauthenticated lists history entries (should be unauthorized)")
     r = call("GET", "/application-history", token=applicant2_token, expect=200,
               label="applicant2 lists history entries")
-    record(r.ok and not any(h["id"] == task11_history_id for h in r.json()),
+    record(r.ok and not any(h["id"] == task11_history_id for h in page_content(r)),
            "task-11 history entry does not appear in an unrelated applicant's list")
     r = call("GET", "/application-history", token=applicant_token, expect=200,
               label="owning applicant lists history entries")
-    record(r.ok and any(h["id"] == task11_history_id for h in r.json()),
+    record(r.ok and any(h["id"] == task11_history_id for h in page_content(r)),
            "task-11 history entry appears in the owning applicant's list")
     r = call("GET", "/application-history", token=admin_token, expect=200,
               label="admin lists history entries")
-    record(r.ok and any(h["id"] == task11_history_id for h in r.json()),
+    record(r.ok and any(h["id"] == task11_history_id for h in page_content(r)),
            "task-11 history entry appears in the admin's list")
 
     guarded(
@@ -1291,11 +1300,11 @@ else:
          label="unassigned processor2 reads task-11 history entry (should be forbidden)")
     r = call("GET", "/application-history", token=processor_token, expect=200,
               label="assigned processor lists history entries")
-    record(r.ok and any(h["id"] == task11_history_id for h in r.json()),
+    record(r.ok and any(h["id"] == task11_history_id for h in page_content(r)),
            "task-11 history entry appears in the assigned processor's list")
     r = call("GET", "/application-history", token=processor2_token, expect=200,
               label="unassigned processor2 lists history entries")
-    record(r.ok and not any(h["id"] == task11_history_id for h in r.json()),
+    record(r.ok and not any(h["id"] == task11_history_id for h in page_content(r)),
            "task-11 history entry does not appear in an unassigned processor's list")
 
     task11_new_doc_ids = []
@@ -1338,11 +1347,11 @@ else:
          label="unassigned underwriter2 reads task-11 history entry (should be forbidden)")
     r = call("GET", "/application-history", token=underwriter_token, expect=200,
               label="assigned underwriter lists history entries")
-    record(r.ok and any(h["id"] == task11_history_id for h in r.json()),
+    record(r.ok and any(h["id"] == task11_history_id for h in page_content(r)),
            "task-11 history entry appears in the assigned underwriter's list")
     r = call("GET", "/application-history", token=underwriter2_token, expect=200,
               label="unassigned underwriter2 lists history entries")
-    record(r.ok and not any(h["id"] == task11_history_id for h in r.json()),
+    record(r.ok and not any(h["id"] == task11_history_id for h in page_content(r)),
            "task-11 history entry does not appear in an unassigned underwriter's list")
 
     guarded(

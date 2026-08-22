@@ -7,6 +7,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -51,8 +54,8 @@ public class ProcessorController {
     // Returns applications that are waiting for a staff member, typically those in Submitted state.
     @GetMapping("/work-list")
     @PreAuthorize("hasRole('PROCESSOR')")
-    public ResponseEntity<List<LoanApplication>> getWorkList() {
-        return ResponseEntity.ok(loanApplicationService.findByStatus("Submitted"));
+    public ResponseEntity<Page<LoanApplication>> getWorkList(@PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(loanApplicationService.findByStatus("Submitted", pageable));
     }
 
     // POST /api/processor/claim/{applicationId}

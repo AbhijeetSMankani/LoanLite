@@ -5,13 +5,13 @@ import com.loanlite.loanlite.entities.User;
 import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
 import com.loanlite.loanlite.services.ApplicationHistoryService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/application-history")
@@ -48,13 +48,12 @@ public class ApplicationHistoryController {
     // GET /api/application-history
     // Returns every history entry the caller has access to: an applicant's own application's
     // history, a processor/underwriter's assigned/claimed application's history, or everything
-    // for admin.
+    // for admin. Ownership filter now lives in the query itself (featuresTodo.csv task 11), not
+    // a post-fetch Java stream over every row in the table.
     @GetMapping
-    public ResponseEntity<List<ApplicationHistory>> list() {
+    public ResponseEntity<Page<ApplicationHistory>> list(@PageableDefault(size = 20) Pageable pageable) {
         User caller = accessGuard.currentUser();
-        List<ApplicationHistory> visible = service.listHistory().stream()
-                .filter(entry -> accessGuard.hasAccess(entry.getApplication(), caller))
-                .collect(Collectors.toList());
+        Page<ApplicationHistory> visible = service.listVisibleTo(caller.getId(), accessGuard.isAdmin(caller), pageable);
         return ResponseEntity.ok(visible);
     }
 

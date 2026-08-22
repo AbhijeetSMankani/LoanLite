@@ -3,14 +3,15 @@ package com.loanlite.loanlite.controllers;
 import com.loanlite.loanlite.entities.User;
 import com.loanlite.loanlite.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -41,8 +42,8 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<User>> list() {
-        return ResponseEntity.ok(service.listUsers());
+    public ResponseEntity<Page<User>> list(@PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(service.listUsers(pageable));
     }
 
     @PutMapping("/{id}")
