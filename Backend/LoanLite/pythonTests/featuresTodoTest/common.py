@@ -183,7 +183,9 @@ def create_application(applicant_user, expect=201, label=None, **overrides):
 
 
 def upload_document(app_id, token, doc_type, expect=201, label=None):
-    files = {"file": (f"{doc_type.lower()}.txt", io.BytesIO(b"dummy file contents"), "text/plain")}
+    # application/pdf, not text/plain - featuresTodo.csv task 10's content-type allow-list
+    # rejects text/plain now.
+    files = {"file": (f"{doc_type.lower()}.pdf", io.BytesIO(b"%PDF-1.4 dummy file contents"), "application/pdf")}
     data = {"documentType": doc_type}
     return call("POST", f"/applications/{app_id}/documents", token=token,
                 files=files, data=data, expect=expect,

@@ -309,7 +309,9 @@ else:
     )
 
     for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
-        files = {"file": (f"{doc_type.lower()}.txt", io.BytesIO(b"dummy file contents"), "text/plain")}
+        # application/pdf, not text/plain - featuresTodo.csv task 10's content-type allow-list
+        # rejects text/plain now.
+        files = {"file": (f"{doc_type.lower()}.pdf", io.BytesIO(b"%PDF-1.4 dummy file contents"), "application/pdf")}
         data = {"documentType": doc_type}
         r = call("POST", f"/applications/{task2_app_id}/documents", token=applicant_token,
                   files=files, data=data, expect=201, label=f"upload {doc_type} for task-2 application")
@@ -537,7 +539,9 @@ else:
            "task-4 application does not appear in an unassigned processor's list")
 
     for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
-        files = {"file": (f"{doc_type.lower()}.txt", io.BytesIO(b"dummy file contents"), "text/plain")}
+        # application/pdf, not text/plain - featuresTodo.csv task 10's content-type allow-list
+        # rejects text/plain now.
+        files = {"file": (f"{doc_type.lower()}.pdf", io.BytesIO(b"%PDF-1.4 dummy file contents"), "application/pdf")}
         data = {"documentType": doc_type}
         r = call("POST", f"/applications/{task4_app_id}/documents", token=applicant_token,
                   files=files, data=data, expect=201, label=f"upload {doc_type} for task-4 application")
@@ -775,7 +779,9 @@ else:
     task8_doc_ids = []
 
     def upload(token, doc_type, expect, label):
-        files = {"file": (f"{doc_type.lower()}.txt", io.BytesIO(b"dummy file contents"), "text/plain")}
+        # application/pdf, not text/plain - featuresTodo.csv task 10's content-type allow-list
+        # rejects text/plain now.
+        files = {"file": (f"{doc_type.lower()}.pdf", io.BytesIO(b"%PDF-1.4 dummy file contents"), "application/pdf")}
         data = {"documentType": doc_type}
         r = call("POST", f"/applications/{task8_app_id}/documents", token=token,
                   files=files, data=data, expect=expect, label=label)
@@ -927,7 +933,9 @@ else:
            "task-9 document appears in the admin's document list")
 
     for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
-        files = {"file": (f"{doc_type.lower()}.txt", io.BytesIO(b"dummy file contents"), "text/plain")}
+        # application/pdf, not text/plain - featuresTodo.csv task 10's content-type allow-list
+        # rejects text/plain now.
+        files = {"file": (f"{doc_type.lower()}.pdf", io.BytesIO(b"%PDF-1.4 dummy file contents"), "application/pdf")}
         data = {"documentType": doc_type}
         r = call("POST", f"/applications/{task9_app_id}/documents", token=applicant_token,
                   files=files, data=data, expect=201, label=f"upload {doc_type} for task-9 application")
@@ -1292,7 +1300,9 @@ else:
 
     task11_new_doc_ids = []
     for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
-        files = {"file": (f"{doc_type.lower()}.txt", io.BytesIO(b"dummy file contents"), "text/plain")}
+        # application/pdf, not text/plain - featuresTodo.csv task 10's content-type allow-list
+        # rejects text/plain now.
+        files = {"file": (f"{doc_type.lower()}.pdf", io.BytesIO(b"%PDF-1.4 dummy file contents"), "application/pdf")}
         data = {"documentType": doc_type}
         r = call("POST", f"/applications/{task11_app_id}/documents", token=applicant_token,
                   files=files, data=data, expect=201, label=f"upload {doc_type} for task-11 application")

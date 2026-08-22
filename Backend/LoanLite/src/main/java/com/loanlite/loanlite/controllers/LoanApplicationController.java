@@ -61,6 +61,17 @@ public class LoanApplicationController {
             "ADDRESS_PROOF"
     );
 
+    // Allow-listed upload content-types (featuresTodo.csv task 10) - covers scanned/photographed
+    // documents and PDF exports, the realistic formats for the required document types above.
+    // Note: MultipartFile.getContentType() is client-supplied metadata, not verified against the
+    // file's actual bytes - this blocks casual mismatches (e.g. an .html/.svg upload, relevant
+    // once a download/view endpoint exists per the CSV), not a determined content-type spoof.
+    private static final Set<String> ALLOWED_DOCUMENT_CONTENT_TYPES = Set.of(
+            "application/pdf",
+            "image/jpeg",
+            "image/png"
+    );
+
     // POST /api/applications
     // Creates a new loan application for the authenticated applicant and sets the initial
     // state to Draft so they can continue filling the form later. USER only: the applicant is
@@ -240,6 +251,10 @@ public class LoanApplicationController {
 
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().build();
+        }
+        if (!ALLOWED_DOCUMENT_CONTENT_TYPES.contains(file.getContentType())) {
+            throw new IllegalArgumentException(
+                    "Unsupported file type '" + file.getContentType() + "' - only PDF, JPEG, and PNG are accepted.");
         }
 
         String originalFileName = file.getOriginalFilename() == null ? "document" : file.getOriginalFilename();
