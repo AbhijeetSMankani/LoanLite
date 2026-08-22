@@ -1,14 +1,16 @@
 # LoanLite API Contract
 
-Generated from the actual controller/entity/security code as of 2026-08-21 (working tree, includes
-uncommitted `LoanApplicationController`/`UserController` changes and the new `UnderwriterController` /
-`LoanApplicationAccessGuard`). This describes **what the backend does today**, including known gaps -
-it is not an aspirational spec. Gaps are called out explicitly so the frontend doesn't build against
-protections that don't exist yet.
+Generated from the actual controller/entity/security code, most recently revised 2026-08-23 after
+`todo/featuresTodo.csv`'s full 11-task backlog landed (automatic history, admin role assignment, fixed
+interest rate + EMI, status-flow rework, claim-race fix, field-stripping on update, document-status
+ownership, exception-message-leak fix, upload limits, pagination) and a full audit pass against the
+current code. This describes **what the backend does today**, including known gaps - it is not an
+aspirational spec. Gaps are called out explicitly so the frontend doesn't build against protections
+that don't exist yet.
 
 See also, in the repo root: `missingEndpoint.csv` (auth endpoints not implemented), `todo/preAuthorizeTodo.csv`
-(access-control lockdown in progress), `todo/frontendContractTodo.csv` (known frontend/backend mismatches
-found so far).
+(access-control lockdown - all items Done except one deliberately deferred bean-validation task),
+`todo/frontendContractTodo.csv` (known frontend/backend mismatches found so far).
 
 ---
 
@@ -113,7 +115,7 @@ some nested objects. Two things to watch for:
 - On `LoanApplication`, `documents` and `applicationHistory` are eagerly included as nested arrays in
   every response that returns a `LoanApplication` (list/get/create/update/submit/withdraw/claim/verify)
   - you don't need a separate call just to get an application's document list, though one exists too
-    (§4, `GET /api/applications/{id}/documents`).
+    (§3.3, `GET /api/applications/{id}/documents`).
 
 ### User
 ```ts
@@ -169,7 +171,7 @@ auth DTOs below use a field literally called `password`).
   documentType: string,        // free text, uppercased server-side. Recognized/"required" values: PAN_CARD, SALARY_SLIP, ADDRESS_PROOF. Anything else (e.g. default "OTHER") is accepted but not tracked as required.
   fileName: string,            // original uploaded filename
   filePath: string,            // server-local path like "uploads/applications/3/<uuid>_file.pdf" - not a URL, see §7 (no download endpoint exists)
-  verificationStatus: string,  // free text, uppercased. Values actually used by backend logic: "PENDING" (set on upload), "REJECTED" (checked by verify logic). "VERIFIED"/others are accepted but not specifically handled anywhere.
+  verificationStatus: string,  // free text, uppercased. "PENDING" is set automatically on upload. All three of PENDING/VERIFIED/REJECTED are specifically handled: ProcessorController.verifyApplication() (featuresTodo.csv task 5) requires every required document to be exactly "VERIFIED" - PENDING and REJECTED both block verification the same way. DocumentController.delete() also checks for exactly "PENDING" to decide whether the owning applicant may delete it themselves (§3.4).
   remarks: string | null,
   uploadedAt: string
 }
@@ -214,8 +216,8 @@ rule enforced manually in the method body (these do **not** show up as an annota
 | `POST /api/auth/login` | Public | `{ email, password }` (`AuthRequest`) | `200` `{ tokenType: "Bearer", token: string }` (`AuthResponse`). Throws `AuthenticationException` → 401 on bad credentials. |
 | `POST /api/auth/register` | Public | `{ email, password, firstName, lastName }` (`RegisterRequest`) | `201` `UserResponse` (`{ id, email, firstName, lastName, role }`) - **does not log the user in**, frontend must call `/login` separately afterward. Always creates with `role = ROLE_USER`. `password` here is stored as-is into `passwordHash` and then BCrypt-encoded server-side. Duplicate email → 400 `"email already in use"`. |
 | `POST /api/auth/logout` | Public | none | `200` empty body. Pure no-op; no server state changes. |
-| `GET /api/auth/me` | Any authenticated user (no explicit `@PreAuthorize`, covered by the global `authenticated()` rule - see §7 task 13) | none | `200` `UserResponse` for the caller. |
-| `POST /api/auth/change-password` | Any authenticated user (same as above, no explicit annotation) | `{ currentPassword, newPassword }` (`ChangePasswordRequest`) | `200` empty body. `400` empty body if `currentPassword` is wrong or `newPassword` is blank (note: this specific 400 is returned manually, not via the global error-JSON shape - the controller catches `IllegalArgumentException` and returns a bare 400). |
+| `GET /api/auth/me` | Any authenticated user (explicit `@PreAuthorize("isAuthenticated()")`) | none | `200` `UserResponse` for the caller. |
+| `POST /api/auth/change-password` | Any authenticated user (same explicit `@PreAuthorize("isAuthenticated()")`) | `{ currentPassword, newPassword }` (`ChangePasswordRequest`) | `200` empty body. `400` empty body if `currentPassword` is wrong or `newPassword` is blank (note: this specific 400 is returned manually, not via the global error-JSON shape - the controller catches `IllegalArgumentException` and returns a bare 400). |
 
 ### 3.2 `UserController` - `/api/users`
 
@@ -231,7 +233,7 @@ rule enforced manually in the method body (these do **not** show up as an annota
 
 | Method & Path | Access | Request Body | Success Response |
 |---|---|---|---|
-| `POST /api/applications` | `ROLE_USER` only (`@PreAuthorize`) - **note: admins cannot create an application through this endpoint**, only plain applicants can | `LoanApplication` JSON. `applicant`, `status`, `recommendation`, `recommendationReason`, `decision`, `decisionComments`, `processor`, `underwriter`, `creditScore`, `verifiedIncome` are all silently overwritten/forced to `null`/`Draft`/caller regardless of what you send. `interestRate` and `emi` are likewise always server-computed (fixed rate + the standard EMI formula off `loanAmount`/`tenureMonths`) regardless of what you send - don't let a client collect either as user input. Only `applicationNumber` (auto-generated if blank), `loanAmount`, `tenureMonths`, `declaredIncome` are actually honored from the body. | `201` created `LoanApplication`. |
+| `POST /api/applications` | `ROLE_USER` only (`@PreAuthorize`) - **note: admins cannot create an application through this endpoint**, only plain applicants can | `LoanApplication` JSON. `applicant`, `status`, `recommendation`, `recommendationReason`, `decision`, `decisionComments`, `processor`, `underwriter`, `creditScore`, `verifiedIncome` are all silently overwritten/forced to `null`/`Draft`/caller regardless of what you send. `interestRate` and `emi` are likewise always server-computed (fixed rate + the standard EMI formula off `loanAmount`/`tenureMonths`) regardless of what you send - don't let a client collect either as user input. Only `applicationNumber` (auto-generated if blank), `loanAmount`, `tenureMonths`, `declaredIncome` are actually honored from the body **for the fields that matter functionally** - note `createdAt`/`updatedAt`/`submittedAt` are technically also honorable from a caller-supplied body (the service only defaults them to `now()` when null, it doesn't force-overwrite a non-null caller value, and `submittedAt` isn't touched by `create()` at all), so a client could in principle backdate these timestamps; low-risk since they aren't scored/financial fields, but worth knowing if you build audit tooling around them. | `201` created `LoanApplication`. |
 | `GET /api/applications` | Any authenticated user. Query params `status`, `processorId`, `underwriterId`, `applicantId` all optional. **Non-admins are force-scoped**: an applicant's `applicantId` is always overridden to their own id (any value they pass is ignored); a processor's `underwriterId`/applicant filters are ignored and `processorId` is forced to their own id; underwriter likewise forced to their own `underwriterId`. Admins' params pass through unchanged (including seeing everything if no params given). | none, optional `page`/`size`/`sort` (§1 Pagination) | `200` `Page<LoanApplication>` (§1), filtered by exact-match AND of whichever params end up set, paginated, default size 20. The dynamic filter query was rewritten as a `Specification` (`featuresTodo.csv` task 11, "Done") to compose with pagination - same filtering semantics as before. |
 | `GET /api/applications/{id}` | Any authenticated user, **plus** `LoanApplicationAccessGuard.hasAccess`: owning applicant OR assigned processor OR assigned underwriter OR admin | none | `200` `LoanApplication`. `403` (empty body) otherwise. `404` (JSON) if id doesn't exist. |
 | `GET /api/applications/application-number/{applicationNumber}` | Same access rule as above | none | `200` `LoanApplication`. `404` (empty body, via `ResponseEntity.notFound()` - **not** the JSON error shape) if no such application number. `403` (empty body) if found but caller lacks access. |
@@ -244,24 +246,29 @@ rule enforced manually in the method body (these do **not** show up as an annota
 
 ### 3.4 `DocumentController` - `/api/documents`
 
-**Only `create`, `updateDocumentStatus`, and `requestDocuments` have explicit role checks below.**
-`get`, `update`, `delete` currently have **no `@PreAuthorize` and no ownership check** - any
-authenticated user (any role) can read, overwrite, or delete **any** document in the system through
-these three. This is a real, current gap (`preAuthorizeTodo.csv` tasks 9/9c/9d, all "Not Started") - do
-not build UI affordances (e.g. "delete my document" for applicants) assuming server-side enforcement
-exists; the button working today doesn't mean the access rule you expect is actually there. `list` is
-the one exception: as of `featuresTodo.csv` task 11 it has no `@PreAuthorize` role gate either, but its
-query is now scoped server-side to what the caller can see (own applications for an applicant,
-assigned/claimed for staff, everything for admin) - it no longer returns every document system-wide to
-every caller the way it used to.
+**Corrected: this section previously described a stale, already-fixed state.** `preAuthorizeTodo.csv`
+tasks 9/9b/9c/9d (locking down `get`/`create`/`update`/`delete` respectively) are all marked **"Done"**
+in that CSV, and the code confirms it - none of the four are an open gap anymore:
+- `get` (`GET /api/documents/{id}`) - ownership-checked via `accessGuard.hasAccess()`.
+- `create` (`POST /api/documents`) - `ROLE_ADMIN` only.
+- `update` (`PUT /api/documents/{id}`) - role-gated to `PROCESSOR`/`UNDERWRITER`/`ADMIN` (**not**
+  ownership-based per that task's own description - any processor/underwriter/admin can still edit
+  *any* document, not just one they're assigned to; this is the one real remaining gap in this group).
+- `delete` (`DELETE /api/documents/{id}`) - admin, or the owning applicant but only while
+  `verificationStatus == "PENDING"`.
+
+`list` (`GET /api/documents`) has no `@PreAuthorize` role gate, but its query is scoped server-side to
+what the caller can see (own applications for an applicant, assigned/claimed for staff, everything for
+admin), added as part of `featuresTodo.csv` task 11's pagination rewrite. `updateDocumentStatus` and
+`requestDocuments` have their own dedicated ownership checks, documented in their own rows below.
 
 | Method & Path | Access | Request Body | Success Response |
 |---|---|---|---|
 | `POST /api/documents` | `ROLE_ADMIN` only | Full `Document` JSON, persisted verbatim including `verificationStatus` - this is metadata-only, no file upload (use §3.3's multipart endpoint for real uploads) | `201` created `Document`. |
-| `GET /api/documents/{id}` | **No access restriction (gap, see above)** | none | `200` `Document`. `404` (JSON) if not found. |
+| `GET /api/documents/{id}` | Ownership-checked via `accessGuard.hasAccess()` on the document's application: owning applicant, assigned processor/underwriter, or admin only | none | `200` `Document`. `403` (empty body) if caller lacks access. `404` (JSON) if not found. |
 | `GET /api/documents` | No `@PreAuthorize`, but **scoped server-side to what the caller can see** (own applications for an applicant, assigned/claimed for staff, everything for admin) via a single query (`featuresTodo.csv` task 11, "Done") - previously fetched every row via `findAll()` then filtered with a Java stream, which didn't compose with pagination | none, optional `page`/`size`/`sort` (§1 Pagination) | `200` `Page<Document>` (§1), paginated, default size 20. |
-| `PUT /api/documents/{id}` | **No access restriction (gap, see above).** Also applies `verificationStatus`/`remarks`/`filePath`/`application` verbatim with zero field stripping - an applicant reaching this could self-approve their own document. Intended to become PROCESSOR/UNDERWRITER/ADMIN-only. | Partial `Document` JSON, null-safe merge | `200` updated `Document`. |
-| `DELETE /api/documents/{id}` | **No access restriction (gap, see above).** Intended rule (not yet implemented): owning applicant may delete their own document only while `verificationStatus == "PENDING"`; once verified/rejected, `ROLE_ADMIN` only. | none | `204` no content. |
+| `PUT /api/documents/{id}` | `PROCESSOR`/`UNDERWRITER`/`ADMIN` only (`@PreAuthorize`) - **not ownership-based**, so any processor/underwriter/admin can edit *any* document, not just one they're assigned to (this is the one real remaining gap in this controller). Also applies `verificationStatus`/`remarks`/`filePath`/`application` verbatim with zero field stripping. An applicant can never reach this endpoint at all (blocked by the role gate before the method body runs) - they upload via `POST /api/applications/{id}/documents` instead. | Partial `Document` JSON, null-safe merge | `200` updated `Document`. `403` (empty body) for `ROLE_USER` callers. |
+| `DELETE /api/documents/{id}` | Admin, or the owning applicant but only while `verificationStatus == "PENDING"` - stops an applicant from erasing a `REJECTED` document and re-triggering verification as if it never existed | none | `204` no content. `403` (empty body) otherwise. |
 | `PATCH /api/documents/{documentId}` | `ROLE_PROCESSOR` only, **plus** an assigned-processor ownership check (`403` for a processor not assigned to that document's application, `featuresTodo.csv` task 8, "Done") - closes what used to be a real gap: any processor could previously flip any document's status on any application system-wide | `{ verificationStatus?: string, status?: string, remarks?: string }` - accepts either `verificationStatus` or `status` as the key (checks `verificationStatus` first, falls back to `status`); value is uppercased | `200` updated `Document`. `403` (empty body) if the caller isn't the assigned processor. `404` (JSON) if the document doesn't exist. |
 | `PATCH /api/documents/applications/{applicationId}/request-documents` | `ROLE_PROCESSOR` only, **plus** assigned-processor ownership check (`403` for an unassigned processor) - added alongside task 5, closing the same gap `verify()` had | `{ message?: string }` (optional body) | `200` `LoanApplication` - pure notification action now, does **not** change `status` at all (the `"Waiting for Documents"` status it used to set is gone entirely); if `message` given, it's stored in `decisionComments` and also logged as a `DOCUMENTS_REQUESTED` history entry. **Note the URL**: despite being about an application, this lives under `/api/documents/...` (controller's base path), not `/api/applications/...` - a known oddity flagged in-code as "should move to ProcessorController". |
 
@@ -279,10 +286,13 @@ task 1, now done) - the backend writes history entries automatically as a side e
 attributed to the caller: `LoanApplicationController.submitApplication()`/`withdrawApplication()`
 (`action: "SUBMITTED"`/`"WITHDRAWN"`), `ProcessorController.claimApplication()`/`verifyApplication()`
 (`"PROCESSOR_CLAIMED"`/`"PROCESSOR_VERIFIED"`, the latter's `details` carrying the recommendation +
-reason), `UnderwriterController.claimApplication()` (`"UNDERWRITER_CLAIMED"`), and
-`DocumentController.updateDocumentStatus()` (`"DOCUMENT_VERIFIED"`/`"DOCUMENT_REJECTED"`, only logged
-when the resulting `verificationStatus` is exactly `VERIFIED` or `REJECTED`). `action` strings above are
-this implementation's choice, not a fixed enum enforced anywhere - don't assume the set is closed.
+reason), `UnderwriterController.claimApplication()`/`decideApplication()` (`"UNDERWRITER_CLAIMED"`,
+and `"UNDERWRITER_ACCEPTED"`/`"UNDERWRITER_REJECTED"` from the decision endpoint, §3.7 - previously
+missing from this list), `DocumentController.updateDocumentStatus()`
+(`"DOCUMENT_VERIFIED"`/`"DOCUMENT_REJECTED"`, only logged when the resulting `verificationStatus` is
+exactly `VERIFIED` or `REJECTED`), and `DocumentController.requestDocuments()` (`"DOCUMENTS_REQUESTED"`,
+§3.4 - also previously missing from this list). `action` strings above are this implementation's
+choice, not a fixed enum enforced anywhere - don't assume the set is closed.
 
 | Method & Path | Access | Request Body | Success Response |
 |---|---|---|---|
@@ -313,7 +323,7 @@ this implementation's choice, not a fixed enum enforced anywhere - don't assume 
 |---|---|---|---|
 | `GET /api/underwriter/work-list` | `ROLE_UNDERWRITER` only | none, optional `page`/`size`/`sort` (§1 Pagination) | `200` `Page<LoanApplication>` (§1) where `status == "Verified"` exactly, paginated, default size 20. |
 | `POST /api/underwriter/claim/{applicationId}` | `ROLE_UNDERWRITER` only. Any underwriter may claim any `Verified` application, first-come-first-served (`featuresTodo.csv` task 6, "Done") | none | `200` `LoanApplication` with `underwriter` set to caller, `status = "Under Review"`. `409` (returns the current application body) if status isn't exactly `"Verified"` at the moment of the write - same atomic-conditional-update reasoning as the processor claim endpoint above. |
-| `POST /api/underwriter/applications/{applicationId}/decision` | `ROLE_UNDERWRITER` only, **plus** an assigned-underwriter ownership check - checked **before** the status precondition below, so a non-assigned caller always gets `403` regardless of the application's current status (e.g. an underwriter who hasn't claimed it yet gets `403`, not `400`, even though the status also isn't `Under Review`) | `{ decision: "ACCEPTED" \| "REJECTED", comments?: string }` | `200` `LoanApplication` with `status = "Accepted"` or `"Rejected"`, `decision` set to the same value, `decisionComments` set from `comments` if given. `400` if the application's current `status` isn't exactly `"Under Review"` (e.g. not yet claimed, or a decision was already made - this is not re-callable once decided), or if `decision` is anything other than `ACCEPTED`/`REJECTED`. This is the actual approve/reject action for the whole product - it didn't exist before `featuresTodo.csv` task 5. |
+| `POST /api/underwriter/applications/{applicationId}/decision` | `ROLE_UNDERWRITER` only, **plus** an assigned-underwriter ownership check - checked **before** the status precondition below, so a non-assigned caller always gets `403` regardless of the application's current status (e.g. an underwriter who hasn't claimed it yet gets `403`, not `400`, even though the status also isn't `Under Review`) | `{ decision: "ACCEPTED" \| "REJECTED", comments?: string }` | `200` `LoanApplication` with `status = "Accepted"` or `"Rejected"`, `decision` set to the same value, `decisionComments` set from `comments` if given. `400` if the application's current `status` isn't exactly `"Under Review"` (e.g. not yet claimed, or a decision was already made - this is not re-callable once decided), or if `decision` is anything other than `ACCEPTED`/`REJECTED`. This is the actual approve/reject action for the whole product - it didn't exist before `featuresTodo.csv` task 5. Also logs a `"UNDERWRITER_ACCEPTED"`/`"UNDERWRITER_REJECTED"` history entry (§3.5) - previously undocumented. |
 
 The exact request body shape above (`decision`/`comments` keys, the `ACCEPTED`/`REJECTED` values) is this
 implementation's choice - the original task description left it as "e.g." - not something confirmed
@@ -333,12 +343,17 @@ accidentally also send (and overwrite) email/name/password fields in the same ca
 
 ## 4. Quick access-control summary
 
+**Corrected: this table previously described a stale, already-fixed state for documents** (it wasn't
+updated when `preAuthorizeTodo.csv` tasks 9/9b/9c/9d and `featuresTodo.csv` task 11 landed, even though
+those tasks' own detailed rows elsewhere in this file were kept current). See §3.4 for the corrected
+per-endpoint detail.
+
 | Role | Can do |
 |---|---|
-| `ROLE_USER` (applicant) | Register/login/own profile. Create/view/edit-while-Draft/submit/withdraw **their own** applications only. Upload documents to any application id (gap, §3.3). View/edit/delete any document (gap, §3.4). Read (not write) their own applications' history entries - writes are `ROLE_ADMIN` only (§3.5). |
-| `ROLE_PROCESSOR` | Everything a normal authenticated user can reach via the gaps above, **plus** work-list/claim/verify/request-documents/update-document-status under `/api/processor` and `/api/documents`. Sees only applications where they're the assigned processor via `GET /api/applications` (list is scoped), but can still read/write *any* application by id directly since `/api/documents/*` aren't ownership-checked (application-history reads *are* ownership-scoped, §3.5). |
-| `ROLE_UNDERWRITER` | Same pattern as processor, for `/api/underwriter` work-list/claim, **plus** the dedicated decision endpoint (§3.7) to accept/reject a claimed application. |
-| `ROLE_ADMIN` | Full access everywhere: only role that can create/list/delete users, delete applications, create/update/delete documents/history entries directly, and assign roles via the dedicated `PATCH /api/admin/users/{id}/role` (§3.8). Cannot create a loan application via `POST /api/applications` (role check is literally `hasRole('USER')`, not "not staff"), and cannot change their own role even via this dedicated endpoint. |
+| `ROLE_USER` (applicant) | Register/login/own profile. Create/view/edit-while-Draft/submit/withdraw **their own** applications only. Upload documents only to applications they have access to (ownership-checked, §3.3 - not an open gap). View/delete only their own documents, and only while `verificationStatus == "PENDING"` for delete (§3.4 - not an open gap). Cannot reach `PUT /api/documents/{id}` at all (role-gated to staff/admin). Read (not write) their own applications' history entries - writes are `ROLE_ADMIN` only (§3.5). |
+| `ROLE_PROCESSOR` | Everything a normal authenticated user can reach, **plus** work-list/claim/verify/request-documents/update-document-status under `/api/processor` and `/api/documents`. Sees only applications where they're the assigned processor via `GET /api/applications` (list is scoped), and `GET /api/documents`/`GET /api/documents/{id}` are likewise ownership-scoped (§3.4 - no longer an open gap). The one real remaining gap: `PUT /api/documents/{id}` is role-gated to PROCESSOR/UNDERWRITER/ADMIN but **not** ownership-checked, so a processor can overwrite *any* document's fields, not just one on an application they're assigned to. |
+| `ROLE_UNDERWRITER` | Same pattern as processor, for `/api/underwriter` work-list/claim, **plus** the dedicated decision endpoint (§3.7) to accept/reject a claimed application. Same `PUT /api/documents/{id}` gap as processor above. |
+| `ROLE_ADMIN` | Full access everywhere: only role that can create/list/delete users, delete applications, create documents directly (`POST /api/documents`), create/update/delete history entries directly, and assign roles via the dedicated `PATCH /api/admin/users/{id}/role` (§3.8). **Not** exclusive on documents: `PUT /api/documents/{id}` also permits PROCESSOR/UNDERWRITER, and `DELETE /api/documents/{id}` also permits the owning applicant for their own `PENDING` document (§3.4). Cannot create a loan application via `POST /api/applications` (role check is literally `hasRole('USER')`, not "not staff"), and cannot change their own role even via the dedicated role-assignment endpoint. |
 
 ---
 
@@ -364,16 +379,20 @@ If you're porting an existing frontend rather than building fresh, these are alr
 - Processor flow: work-list → claim → verify.
 - Underwriter flow: work-list → claim → decision (accept/reject, §3.7).
 - Admin: user CRUD, application delete.
+- **Reminder**: every flow above that lists something (own applications, work-lists) now reads a
+  paginated `Page<T>` response (§1), not a bare array - read `response.content`, not `response` itself.
 
 ## 7. What's explicitly unfinished (don't design final UX around these yet)
 
 - Refresh tokens (`missingEndpoint.csv`): not implemented by design - single long-lived (1h) access token.
 - Forgot/reset password, email verification (`missingEndpoint.csv`): "Will Implement Later", no backend support at all.
-- Document ownership checks (§3.4): `get`/`update`/`delete` are still wide open to any authenticated
-  user - `DocumentController.update` (the generic `PUT /api/documents/{id}`) has no ownership check
-  yet. `list` gained a server-side ownership-scoped query as part of pagination (`featuresTodo.csv`
-  task 11, "Done"). The per-document status endpoint (`PATCH .../{documentId}`) is now
-  assigned-processor-checked (`featuresTodo.csv` task 8, "Done"), matching
-  `ProcessorController.verifyApplication()`/`requestDocuments()` (§3.6/§3.4). Application-history
-  ownership (§3.5) is already locked down, and history now writes itself automatically.
+- One narrow document gap remains (§3.4): `PUT /api/documents/{id}` is role-gated to
+  PROCESSOR/UNDERWRITER/ADMIN but **not** ownership-checked, so any of those roles can edit *any*
+  document, not just one on an application they're assigned to (`preAuthorizeTodo.csv` task 9c's own
+  description explicitly calls this "not ownership-based" - a deliberate scope choice, not an oversight,
+  but still worth knowing). Every other document endpoint (`get`/`create`/`delete`/`list`, the
+  per-document status endpoint, `requestDocuments`) is already ownership- or role-checked as
+  documented in §3.4 - this section previously described several of them as open gaps, which was
+  stale. Application-history ownership (§3.5) is already locked down, and history now writes itself
+  automatically.
 - Document download/view and a correctly-named upload route (§5).
