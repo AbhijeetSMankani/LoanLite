@@ -225,7 +225,7 @@ exists; the button working today doesn't mean the access rule you expect is actu
 | `GET /api/documents` | **No access restriction (gap, see above)** | none | `200` `Document[]` - every document in the system. |
 | `PUT /api/documents/{id}` | **No access restriction (gap, see above).** Also applies `verificationStatus`/`remarks`/`filePath`/`application` verbatim with zero field stripping - an applicant reaching this could self-approve their own document. Intended to become PROCESSOR/UNDERWRITER/ADMIN-only. | Partial `Document` JSON, null-safe merge | `200` updated `Document`. |
 | `DELETE /api/documents/{id}` | **No access restriction (gap, see above).** Intended rule (not yet implemented): owning applicant may delete their own document only while `verificationStatus == "PENDING"`; once verified/rejected, `ROLE_ADMIN` only. | none | `204` no content. |
-| `PATCH /api/documents/{documentId}` | `ROLE_PROCESSOR` only | `{ verificationStatus?: string, status?: string, remarks?: string }` - accepts either `verificationStatus` or `status` as the key (checks `verificationStatus` first, falls back to `status`); value is uppercased | `200` updated `Document`. Code has a commented-out TODO to also check the document's application against the caller - currently **any** processor can update **any** document's status regardless of whether they claimed that application. |
+| `PATCH /api/documents/{documentId}` | `ROLE_PROCESSOR` only, **plus** an assigned-processor ownership check (`403` for a processor not assigned to that document's application, `featuresTodo.csv` task 8, "Done") - closes what used to be a real gap: any processor could previously flip any document's status on any application system-wide | `{ verificationStatus?: string, status?: string, remarks?: string }` - accepts either `verificationStatus` or `status` as the key (checks `verificationStatus` first, falls back to `status`); value is uppercased | `200` updated `Document`. `403` (empty body) if the caller isn't the assigned processor. `404` (JSON) if the document doesn't exist. |
 | `PATCH /api/documents/applications/{applicationId}/request-documents` | `ROLE_PROCESSOR` only, **plus** assigned-processor ownership check (`403` for an unassigned processor) - added alongside task 5, closing the same gap `verify()` had | `{ message?: string }` (optional body) | `200` `LoanApplication` - pure notification action now, does **not** change `status` at all (the `"Waiting for Documents"` status it used to set is gone entirely); if `message` given, it's stored in `decisionComments` and also logged as a `DOCUMENTS_REQUESTED` history entry. **Note the URL**: despite being about an application, this lives under `/api/documents/...` (controller's base path), not `/api/applications/...` - a known oddity flagged in-code as "should move to ProcessorController". |
 
 ### 3.5 `ApplicationHistoryController` - `/api/application-history`
@@ -332,9 +332,10 @@ If you're porting an existing frontend rather than building fresh, these are alr
 
 - Refresh tokens (`missingEndpoint.csv`): not implemented by design - single long-lived (1h) access token.
 - Forgot/reset password, email verification (`missingEndpoint.csv`): "Will Implement Later", no backend support at all.
-- Document ownership checks (§3.4): still wide open to any authenticated user (`DocumentController.update`
-  and the per-document `PATCH .../{documentId}` status endpoint have no assigned-processor check yet -
-  note this is distinct from `ProcessorController.verifyApplication()`/`requestDocuments()`, which *do*
-  have that check now, per §3.6/§3.4). Application-history ownership (§3.5) is already locked down, and
-  history now writes itself automatically.
+- Document ownership checks (§3.4): `get`/`list`/`update`/`delete` are still wide open to any
+  authenticated user - `DocumentController.update` (the generic `PUT /api/documents/{id}`) has no
+  ownership check yet. The per-document status endpoint (`PATCH .../{documentId}`) is now
+  assigned-processor-checked (`featuresTodo.csv` task 8, "Done"), matching
+  `ProcessorController.verifyApplication()`/`requestDocuments()` (§3.6/§3.4). Application-history
+  ownership (§3.5) is already locked down, and history now writes itself automatically.
 - Document download/view and a correctly-named upload route (§5).

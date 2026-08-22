@@ -134,10 +134,11 @@ public class DocumentController {
             @PathVariable Long documentId,
             @RequestBody Map<String, String> payload) {
 
-        Document existing = service.getDocument(documentId); //? Check the document's applicationId against the currently logged-in user's id, to see if they are allowed to update it. If not, return 403 Forbidden.
-        // if (!existing.getApplication().getId().equals(applicationId)) {
-        //     return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-        // }
+        Document existing = service.getDocument(documentId);
+        User caller = accessGuard.currentUser();
+        if (!accessGuard.isAssignedProcessor(existing.getApplication(), caller)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
 
         String verificationStatus = payload.get("verificationStatus");
         if (verificationStatus == null || verificationStatus.isBlank()) {
@@ -156,7 +157,7 @@ public class DocumentController {
             String action = "VERIFIED".equalsIgnoreCase(newStatus) ? "DOCUMENT_VERIFIED" : "DOCUMENT_REJECTED";
             String details = "Document '" + updated.getFileName() + "' (" + updated.getDocumentType()
                     + ") marked " + newStatus.toUpperCase(Locale.ROOT) + ".";
-            historyService.log(updated.getApplication(), accessGuard.currentUser(), action, details);
+            historyService.log(updated.getApplication(), caller, action, details);
         }
         return ResponseEntity.ok(updated);
     }
