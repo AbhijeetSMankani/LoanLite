@@ -166,6 +166,17 @@ else:
     )
     assert_entry_recorded(proc_app_id, users.admin.token, ACTION_PROCESSOR_CLAIMED, users.processor.id, "processor claim")
 
+    # verifyApplication() requires every required document to be individually VERIFIED, not just
+    # present and not-REJECTED (featuresTodo.csv task 5) - mark them before verifying.
+    for doc_id in doc_ids:
+        guarded(
+            f"/documents/{doc_id}", users.admin.token,
+            lambda doc_id=doc_id: call("PATCH", f"/documents/{doc_id}", token=users.processor.token,
+                                        json={"verificationStatus": "VERIFIED"}, expect=200,
+                                        label=f"mark document {doc_id} VERIFIED before processor verify"),
+            f"mark document {doc_id} VERIFIED before processor verify",
+        )
+
     guarded(
         f"/applications/{proc_app_id}", users.admin.token,
         lambda: call("POST", f"/processor/applications/{proc_app_id}/verify", token=users.processor.token, expect=200,

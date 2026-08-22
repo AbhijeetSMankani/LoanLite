@@ -163,7 +163,9 @@ public class DocumentController {
 
 
     // PATCH /api/applications/{applicationId}/request-documents
-    // Requests missing documents from the applicant and marks the application as Waiting for Documents.
+    // Requests missing/corrected documents from the applicant. Pure notification action - it no
+    // longer changes status (the "Waiting for Documents" status is gone entirely; the application
+    // just stays Under Verification). Assigned-processor-only, same ownership gap fix as verify().
     @PatchMapping("/applications/{applicationId}/request-documents")
     @PreAuthorize("hasRole('PROCESSOR')")
     public ResponseEntity<LoanApplication> requestDocuments(
@@ -171,14 +173,22 @@ public class DocumentController {
             @RequestBody(required = false) Map<String, String> payload) {
 
         LoanApplication existing = loanApplicationService.getApplication(applicationId);
-        existing.setStatus("Waiting for Documents");
-        existing.setUpdatedAt(LocalDateTime.now());
-        if (payload != null && payload.get("message") != null) {
-            existing.setDecisionComments(payload.get("message"));
+        User caller = accessGuard.currentUser();
+        if (!accessGuard.isAssignedProcessor(existing, caller)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        return ResponseEntity.ok(loanApplicationService.updateApplication(applicationId, existing));
-    } //TODO: move to processor controller, since the processor is requesting the documents.
+        String message = payload != null ? payload.get("message") : null;
+        if (message != null) {
+            existing.setDecisionComments(message);
+        }
+        existing.setUpdatedAt(LocalDateTime.now());
+
+        LoanApplication updated = loanApplicationService.updateApplication(applicationId, existing);
+        historyService.log(updated, caller, "DOCUMENTS_REQUESTED",
+                message != null ? message : "Processor requested additional/corrected documents.");
+        return ResponseEntity.ok(updated);
+    }
 
 
 

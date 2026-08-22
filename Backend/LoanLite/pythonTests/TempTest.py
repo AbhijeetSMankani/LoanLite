@@ -326,6 +326,16 @@ else:
                      label="processor claims task-2 application"),
         "claim task-2 application (processor)",
     )
+    # verifyApplication() now requires every required document to be individually VERIFIED,
+    # not just present and not-REJECTED (featuresTodo.csv task 5) - mark them before verifying.
+    for doc_id in task2_doc_ids:
+        guarded(
+            f"/documents/{doc_id}", admin_token,
+            lambda doc_id=doc_id: call("PATCH", f"/documents/{doc_id}", token=processor_token,
+                         json={"verificationStatus": "VERIFIED"}, expect=200,
+                         label=f"mark task-2 document {doc_id} VERIFIED"),
+            f"mark task-2 document {doc_id} VERIFIED",
+        )
     guarded(
         f"/applications/{task2_app_id}", admin_token,
         lambda: call("POST", f"/processor/applications/{task2_app_id}/verify", token=processor_token, expect=200,
@@ -335,8 +345,8 @@ else:
     r = call("GET", f"/applications/{task2_app_id}", token=processor_token, expect=200,
               label="re-read task-2 application after processor verify")
     if r.ok:
-        record(r.json().get("status") == "Ready for Underwriter",
-               f"task-2 application status is Ready for Underwriter (got {r.json().get('status')})")
+        record(r.json().get("status") == "Verified",
+               f"task-2 application status is Verified (got {r.json().get('status')})")
 
     call("GET", "/underwriter/work-list", expect=401,
          label="unauthenticated reads underwriter work-list (should be unauthorized)")
@@ -372,13 +382,13 @@ else:
               label="re-read task-2 application after underwriter claim")
     if r.ok:
         body = r.json()
-        record(body.get("status") == "In Underwriting Review",
-               f"task-2 application status is In Underwriting Review (got {body.get('status')})")
+        record(body.get("status") == "Under Review",
+               f"task-2 application status is Under Review (got {body.get('status')})")
         record((body.get("underwriter") or {}).get("id") == underwriter_id,
                "underwriter is assigned on task-2 application")
 
     call("POST", f"/underwriter/claim/{task2_app_id}", token=underwriter_token, expect=400,
-         label="underwriter claims task-2 application again (no longer Ready for Underwriter, should fail)")
+         label="underwriter claims task-2 application again (no longer Verified, should fail)")
 
     for doc_id in task2_doc_ids:
         guarded(
@@ -533,6 +543,16 @@ else:
         if r.ok:
             task4_doc_ids.append(r.json()["id"])
 
+    # verifyApplication() now requires every required document to be individually VERIFIED,
+    # not just present and not-REJECTED (featuresTodo.csv task 5) - mark them before verifying.
+    for doc_id in task4_doc_ids:
+        guarded(
+            f"/documents/{doc_id}", admin_token,
+            lambda doc_id=doc_id: call("PATCH", f"/documents/{doc_id}", token=processor_token,
+                         json={"verificationStatus": "VERIFIED"}, expect=200,
+                         label=f"mark task-4 document {doc_id} VERIFIED"),
+            f"mark task-4 document {doc_id} VERIFIED",
+        )
     guarded(
         f"/applications/{task4_app_id}", admin_token,
         lambda: call("POST", f"/processor/applications/{task4_app_id}/verify", token=processor_token, expect=200,
@@ -809,6 +829,16 @@ else:
     if r.ok:
         record(len(r.json().get("documents", [])) == 3, "all 3 documents visible to the assigned processor")
 
+    # verifyApplication() now requires every required document to be individually VERIFIED,
+    # not just present and not-REJECTED (featuresTodo.csv task 5) - mark them before verifying.
+    for doc_id in task8_doc_ids:
+        guarded(
+            f"/documents/{doc_id}", admin_token,
+            lambda doc_id=doc_id: call("PATCH", f"/documents/{doc_id}", token=processor_token,
+                         json={"verificationStatus": "VERIFIED"}, expect=200,
+                         label=f"mark task-8 document {doc_id} VERIFIED"),
+            f"mark task-8 document {doc_id} VERIFIED",
+        )
     guarded(
         f"/applications/{task8_app_id}", admin_token,
         lambda: call("POST", f"/processor/applications/{task8_app_id}/verify", token=processor_token, expect=200,
@@ -927,6 +957,16 @@ else:
     record(r.ok and not any(d["id"] == task9_doc_id for d in r.json()),
            "task-9 document does not appear in an unassigned processor's document list")
 
+    # verifyApplication() now requires every required document to be individually VERIFIED,
+    # not just present and not-REJECTED (featuresTodo.csv task 5) - mark them before verifying.
+    for doc_id in task9_doc_ids:
+        guarded(
+            f"/documents/{doc_id}", admin_token,
+            lambda doc_id=doc_id: call("PATCH", f"/documents/{doc_id}", token=processor_token,
+                         json={"verificationStatus": "VERIFIED"}, expect=200,
+                         label=f"mark task-9 document {doc_id} VERIFIED"),
+            f"mark task-9 document {doc_id} VERIFIED",
+        )
     guarded(
         f"/applications/{task9_app_id}", admin_token,
         lambda: call("POST", f"/processor/applications/{task9_app_id}/verify", token=processor_token, expect=200,
@@ -1249,12 +1289,25 @@ else:
     record(r.ok and not any(h["id"] == task11_history_id for h in r.json()),
            "task-11 history entry does not appear in an unassigned processor's list")
 
+    task11_new_doc_ids = []
     for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
         files = {"file": (f"{doc_type.lower()}.txt", io.BytesIO(b"dummy file contents"), "text/plain")}
         data = {"documentType": doc_type}
         r = call("POST", f"/applications/{task11_app_id}/documents", token=applicant_token,
                   files=files, data=data, expect=201, label=f"upload {doc_type} for task-11 application")
+        if r.ok:
+            task11_new_doc_ids.append(r.json()["id"])
 
+    # verifyApplication() now requires every required document to be individually VERIFIED,
+    # not just present and not-REJECTED (featuresTodo.csv task 5) - mark them before verifying.
+    for doc_id in task11_new_doc_ids:
+        guarded(
+            f"/documents/{doc_id}", admin_token,
+            lambda doc_id=doc_id: call("PATCH", f"/documents/{doc_id}", token=processor_token,
+                         json={"verificationStatus": "VERIFIED"}, expect=200,
+                         label=f"mark task-11 document {doc_id} VERIFIED"),
+            f"mark task-11 document {doc_id} VERIFIED",
+        )
     guarded(
         f"/applications/{task11_app_id}", admin_token,
         lambda: call("POST", f"/processor/applications/{task11_app_id}/verify", token=processor_token, expect=200,

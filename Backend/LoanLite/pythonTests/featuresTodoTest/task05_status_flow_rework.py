@@ -336,10 +336,16 @@ else:
         "processor verifies (section D)",
     )
 
-    # Not yet claimed by any underwriter - status is "Verified", not "Under Review" yet.
+    # Not yet claimed by any underwriter - ownership is checked before the status precondition
+    # (same order as every other ownership+state check in this codebase, e.g.
+    # LoanApplicationController.update()'s hasAccess() check before its Draft-status check), so
+    # a caller who isn't the assigned underwriter gets 403 here, not 400 - nobody is "the
+    # assigned underwriter" on an unclaimed application, this underwriter included. The 400
+    # "wrong status" case is exercised later once this same underwriter actually IS assigned but
+    # the application is no longer Under Review (after a decision has already been made).
     call("POST", DECISION_PATH.format(id=app_d), token=users.underwriter.token,
-         json={DECISION_BODY_KEY: DECISION_VALUE_ACCEPT}, expect=400,
-         label="decision attempted while status is 'Verified', not 'Under Review' yet (should be 400)")
+         json={DECISION_BODY_KEY: DECISION_VALUE_ACCEPT}, expect=403,
+         label="decision attempted by an underwriter not yet assigned (application isn't claimed yet, should be forbidden)")
 
     guarded(
         f"/applications/{app_d}", users.admin.token,

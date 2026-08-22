@@ -157,10 +157,13 @@ auth DTOs below use a field literally called `password`).
 ```
 
 ### Canonical `LoanApplication.status` values actually produced by the backend
-`Draft` → `Submitted` → `In Review` (processor claims) → `Waiting for Documents` *or* `Ready for Underwriter`
-(processor verifies) → `In Underwriting Review` (underwriter claims). `Withdrawn` is a terminal state set
-by the applicant at any time before/during the above via withdraw. **There is no terminal
-approved/rejected status** - see §7. Matching is exact-string, case-sensitive in search/filter queries
+`Draft` → `Submitted` → `Under Verification` (processor claims) → `Verified` (processor verify
+succeeds) → `Under Review` (underwriter claims) → `Accepted` *or* `Rejected` (underwriter decision,
+§3.7 - the terminal states). `Withdrawn` is a terminal state set by the applicant at any time
+before/during the above via withdraw. There is no longer a `"Waiting for Documents"` status
+(featuresTodo.csv task 5) - if verification can't proceed, `POST /api/processor/applications/{id}/verify`
+returns `400` with a reason instead of changing status; the application just stays
+`Under Verification`. Matching is exact-string, case-sensitive in search/filter queries
 (`l.status = :status` in JPQL) - `"submitted"` will not match `"Submitted"`.
 
 ---
@@ -223,7 +226,7 @@ exists; the button working today doesn't mean the access rule you expect is actu
 | `PUT /api/documents/{id}` | **No access restriction (gap, see above).** Also applies `verificationStatus`/`remarks`/`filePath`/`application` verbatim with zero field stripping - an applicant reaching this could self-approve their own document. Intended to become PROCESSOR/UNDERWRITER/ADMIN-only. | Partial `Document` JSON, null-safe merge | `200` updated `Document`. |
 | `DELETE /api/documents/{id}` | **No access restriction (gap, see above).** Intended rule (not yet implemented): owning applicant may delete their own document only while `verificationStatus == "PENDING"`; once verified/rejected, `ROLE_ADMIN` only. | none | `204` no content. |
 | `PATCH /api/documents/{documentId}` | `ROLE_PROCESSOR` only | `{ verificationStatus?: string, status?: string, remarks?: string }` - accepts either `verificationStatus` or `status` as the key (checks `verificationStatus` first, falls back to `status`); value is uppercased | `200` updated `Document`. Code has a commented-out TODO to also check the document's application against the caller - currently **any** processor can update **any** document's status regardless of whether they claimed that application. |
-| `PATCH /api/documents/applications/{applicationId}/request-documents` | `ROLE_PROCESSOR` only | `{ message?: string }` (optional body) | `200` `LoanApplication` with `status = "Waiting for Documents"`; if `message` given, it's stored in `decisionComments`. **Note the URL**: despite being about an application, this lives under `/api/documents/...` (controller's base path), not `/api/applications/...` - a known oddity flagged in-code as "should move to ProcessorController". |
+| `PATCH /api/documents/applications/{applicationId}/request-documents` | `ROLE_PROCESSOR` only, **plus** assigned-processor ownership check (`403` for an unassigned processor) - added alongside task 5, closing the same gap `verify()` had | `{ message?: string }` (optional body) | `200` `LoanApplication` - pure notification action now, does **not** change `status` at all (the `"Waiting for Documents"` status it used to set is gone entirely); if `message` given, it's stored in `decisionComments` and also logged as a `DOCUMENTS_REQUESTED` history entry. **Note the URL**: despite being about an application, this lives under `/api/documents/...` (controller's base path), not `/api/applications/...` - a known oddity flagged in-code as "should move to ProcessorController". |
 
 ### 3.5 `ApplicationHistoryController` - `/api/application-history`
 
@@ -257,29 +260,27 @@ this implementation's choice, not a fixed enum enforced anywhere - don't assume 
 | Method & Path | Access | Request Body | Success Response |
 |---|---|---|---|
 | `GET /api/processor/work-list` | `ROLE_PROCESSOR` only | none | `200` `LoanApplication[]` where `status == "Submitted"` exactly. |
-| `POST /api/processor/claim/{applicationId}` | `ROLE_PROCESSOR` only. Any processor may claim any `Submitted` application (first-come-first-served, no prior-assignment check) | none | `200` `LoanApplication` with `processor` set to caller, `status = "In Review"`. `400` (returns the **unchanged** application body, not empty) if current status isn't exactly `"Submitted"`. |
-| `POST /api/processor/applications/{applicationId}/verify` | `ROLE_PROCESSOR` only. **No check that the caller is the processor assigned to this application** - any processor can verify any application, claimed by them or not | none | `200` updated `LoanApplication` with `recommendation`/`recommendationReason`/`status` set by server-side rule logic (below). |
+| `POST /api/processor/claim/{applicationId}` | `ROLE_PROCESSOR` only. Any processor may claim any `Submitted` application (first-come-first-served, no prior-assignment check - this endpoint has a known race condition, `featuresTodo.csv` task 6, "Not Started") | none | `200` `LoanApplication` with `processor` set to caller, `status = "Under Verification"`. `400` (returns the **unchanged** application body, not empty) if current status isn't exactly `"Submitted"`. |
+| `POST /api/processor/applications/{applicationId}/verify` | `ROLE_PROCESSOR` only, **plus** an assigned-processor ownership check (`403` for an unassigned processor, checked before any of the document/recommendation logic below) | none | `200` updated `LoanApplication` with `recommendation`/`recommendationReason`/`status = "Verified"` set by server-side rule logic (below). `400` (via `IllegalArgumentException` → global handler, listing exactly which required document types are the problem) if verification can't proceed - status is left unchanged (still `Under Verification`) in that case, there's no more `"Waiting for Documents"` status to fall into. |
 
 **Verify decision logic** (for frontend messaging/expectations):
-- Missing any of `PAN_CARD`/`SALARY_SLIP`/`ADDRESS_PROOF` → `recommendation = "REJECTED"`, `status = "Waiting for Documents"`.
-- Any uploaded document has `verificationStatus == "REJECTED"` → `recommendation = "REJECTED"`, `status = "Waiting for Documents"`.
-- Otherwise, based on `creditScore` (treated as `0` if null) and `verifiedIncome`:
-  - `creditScore >= 700` AND (`verifiedIncome` is null OR `>= 30000`) → `recommendation = "APPROVE"`, `status = "Ready for Underwriter"`.
-  - `creditScore >= 650` → `recommendation = "MANUAL_REVIEW"`, `status = "Ready for Underwriter"`.
-  - else → `recommendation = "REJECT"` *(no trailing "ED", inconsistent with the "REJECTED" used in the two branches above - frontend must handle both spellings)*, `status = "Ready for Underwriter"` *(yes, even the low-credit-score rejection path still moves to "Ready for Underwriter", not a rejected/closed state - there's no terminal rejection status, see §7)*.
+- Every one of `PAN_CARD`/`SALARY_SLIP`/`ADDRESS_PROOF` must have an uploaded document whose `verificationStatus` is exactly `"VERIFIED"` (set via the per-document `PATCH /api/documents/{documentId}`, PROCESSOR only) - missing entirely, still `PENDING`, or `REJECTED` all equally block verification with `400`. This is stricter than it used to be: previously any non-`REJECTED` status (including `PENDING`) was accepted.
+- Once every required document is individually `VERIFIED`, the recommendation is based on `creditScore` (treated as `0` if null) and `verifiedIncome`, and `status` becomes `"Verified"` in all three cases below:
+  - `creditScore >= 700` AND (`verifiedIncome` is null OR `>= 30000`) → `recommendation = "APPROVE"`.
+  - `creditScore >= 650` → `recommendation = "MANUAL_REVIEW"`.
+  - else → `recommendation = "REJECT"` *(no trailing "ED", inconsistent with the "REJECTED" used for the document-blocking 400 case above - frontend must handle both spellings)* - **this is not a terminal rejection**, the application still moves to `"Verified"` and can proceed to underwriter review; the actual accept/reject decision only happens at §3.7's decision endpoint.
 
 ### 3.7 `UnderwriterController` - `/api/underwriter`
 
 | Method & Path | Access | Request Body | Success Response |
 |---|---|---|---|
-| `GET /api/underwriter/work-list` | `ROLE_UNDERWRITER` only | none | `200` `LoanApplication[]` where `status == "Ready for Underwriter"` exactly. |
-| `POST /api/underwriter/claim/{applicationId}` | `ROLE_UNDERWRITER` only. Any underwriter may claim any `Ready for Underwriter` application, no prior-assignment check | none | `200` `LoanApplication` with `underwriter` set to caller, `status = "In Underwriting Review"`. `400` (returns unchanged application body) if status isn't exactly `"Ready for Underwriter"`. |
+| `GET /api/underwriter/work-list` | `ROLE_UNDERWRITER` only | none | `200` `LoanApplication[]` where `status == "Verified"` exactly. |
+| `POST /api/underwriter/claim/{applicationId}` | `ROLE_UNDERWRITER` only. Any underwriter may claim any `Verified` application, no prior-assignment check - this endpoint has the same known race condition as the processor claim endpoint (`featuresTodo.csv` task 6, "Not Started") | none | `200` `LoanApplication` with `underwriter` set to caller, `status = "Under Review"`. `400` (returns unchanged application body) if status isn't exactly `"Verified"`. |
+| `POST /api/underwriter/applications/{applicationId}/decision` | `ROLE_UNDERWRITER` only, **plus** an assigned-underwriter ownership check - checked **before** the status precondition below, so a non-assigned caller always gets `403` regardless of the application's current status (e.g. an underwriter who hasn't claimed it yet gets `403`, not `400`, even though the status also isn't `Under Review`) | `{ decision: "ACCEPTED" \| "REJECTED", comments?: string }` | `200` `LoanApplication` with `status = "Accepted"` or `"Rejected"`, `decision` set to the same value, `decisionComments` set from `comments` if given. `400` if the application's current `status` isn't exactly `"Under Review"` (e.g. not yet claimed, or a decision was already made - this is not re-callable once decided), or if `decision` is anything other than `ACCEPTED`/`REJECTED`. This is the actual approve/reject action for the whole product - it didn't exist before `featuresTodo.csv` task 5. |
 
-**There is no underwriter decision endpoint.** Once an application is `"In Underwriting Review"`, the
-only way to set `decision`/`decisionComments`/a final status is the generic `PUT /api/applications/{id}`
-(§3.3), which as an assigned underwriter you do have access to. There is no defined set of terminal
-`decision` values yet - decide this with the team before wiring up an "Approve/Reject" button; whatever
-strings you pick are not currently read or validated by anything server-side.
+The exact request body shape above (`decision`/`comments` keys, the `ACCEPTED`/`REJECTED` values) is this
+implementation's choice - the original task description left it as "e.g." - not something confirmed
+against an external spec, unlike the status names themselves which were explicitly agreed upfront.
 
 ### 3.8 `AdminController` - `/api/admin`
 
@@ -299,7 +300,7 @@ accidentally also send (and overwrite) email/name/password fields in the same ca
 |---|---|
 | `ROLE_USER` (applicant) | Register/login/own profile. Create/view/edit-while-Draft/submit/withdraw **their own** applications only. Upload documents to any application id (gap, §3.3). View/edit/delete any document (gap, §3.4). Read (not write) their own applications' history entries - writes are `ROLE_ADMIN` only (§3.5). |
 | `ROLE_PROCESSOR` | Everything a normal authenticated user can reach via the gaps above, **plus** work-list/claim/verify/request-documents/update-document-status under `/api/processor` and `/api/documents`. Sees only applications where they're the assigned processor via `GET /api/applications` (list is scoped), but can still read/write *any* application by id directly since `/api/documents/*` aren't ownership-checked (application-history reads *are* ownership-scoped, §3.5). |
-| `ROLE_UNDERWRITER` | Same pattern as processor, for `/api/underwriter` work-list/claim. No dedicated decision endpoint (§3.7). |
+| `ROLE_UNDERWRITER` | Same pattern as processor, for `/api/underwriter` work-list/claim, **plus** the dedicated decision endpoint (§3.7) to accept/reject a claimed application. |
 | `ROLE_ADMIN` | Full access everywhere: only role that can create/list/delete users, delete applications, create/update/delete documents/history entries directly, and assign roles via the dedicated `PATCH /api/admin/users/{id}/role` (§3.8). Cannot create a loan application via `POST /api/applications` (role check is literally `hasRole('USER')`, not "not staff"), and cannot change their own role even via this dedicated endpoint. |
 
 ---
@@ -310,18 +311,21 @@ If you're porting an existing frontend rather than building fresh, these are alr
 - `POST /api/documents/upload` does not exist. Use `POST /api/applications/{id}/documents` (multipart).
 - No file-download/view route exists anywhere - uploaded files sit on disk under `uploads/applications/{id}/`
   with nothing to stream them back to a client. Don't build a "view document" button yet.
-- Status strings must be the exact capitalized backend values (`"Draft"`, `"Submitted"`, `"In Review"`,
-  `"Waiting for Documents"`, `"Ready for Underwriter"`, `"In Underwriting Review"`, `"Withdrawn"`) -
-  lowercase/hyphenated equivalents will silently fail exact-match filters.
-- There's no fixed set of underwriter decision strings server-side (see §3.7) - don't hardcode
-  `approved`/`rejected`/`referred` without confirming what gets stored where.
+- Status strings must be the exact capitalized backend values (`"Draft"`, `"Submitted"`,
+  `"Under Verification"`, `"Verified"`, `"Under Review"`, `"Accepted"`, `"Rejected"`, `"Withdrawn"`) -
+  lowercase/hyphenated equivalents will silently fail exact-match filters. These were renamed in
+  `featuresTodo.csv` task 5 (was `"In Review"`/`"Waiting for Documents"`/`"Ready for Underwriter"`/
+  `"In Underwriting Review"` - `"Waiting for Documents"` is gone entirely, not renamed to anything).
+- The underwriter decision endpoint now exists (§3.7) with a fixed `decision` value set
+  (`ACCEPTED`/`REJECTED`) - don't hardcode `approved`/`rejected`/`referred`, those aren't what gets
+  stored.
 
 ## 6. What to build against safely today
 
 - Auth: login/register/me/change-password (§3.1).
 - Applicant flow: create → edit while Draft → upload documents → submit → view own application(s)/status.
 - Processor flow: work-list → claim → verify.
-- Underwriter flow: work-list → claim (decision step needs a design decision first, see §3.7).
+- Underwriter flow: work-list → claim → decision (accept/reject, §3.7).
 - Admin: user CRUD, application delete.
 
 ## 7. What's explicitly unfinished (don't design final UX around these yet)
@@ -329,7 +333,11 @@ If you're porting an existing frontend rather than building fresh, these are alr
 - Refresh tokens (`missingEndpoint.csv`): not implemented by design - single long-lived (1h) access token.
 - Forgot/reset password, email verification (`missingEndpoint.csv`): "Will Implement Later", no backend support at all.
 - Document ownership checks (§3.4): still wide open to any authenticated user (`DocumentController.update`
-  and the per-document `PATCH .../{documentId}` status endpoint have no assigned-processor check yet).
-  Application-history ownership (§3.5) is already locked down, and history now writes itself automatically.
-- Underwriter decision endpoint (§3.7): doesn't exist; only the generic PUT is available.
+  and the per-document `PATCH .../{documentId}` status endpoint have no assigned-processor check yet -
+  note this is distinct from `ProcessorController.verifyApplication()`/`requestDocuments()`, which *do*
+  have that check now, per §3.6/§3.4). Application-history ownership (§3.5) is already locked down, and
+  history now writes itself automatically.
+- The processor/underwriter claim endpoints (§3.6/§3.7) have a known race condition under concurrent
+  claims (`featuresTodo.csv` task 6, "Not Started") - two callers claiming the same application at
+  nearly the same moment can both get `200 OK`, with the second write silently overwriting the first.
 - Document download/view and a correctly-named upload route (§5).
