@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -14,6 +16,8 @@ import org.springframework.web.context.request.WebRequest;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // Access-denied (@PreAuthorize failures) and bad-credentials/authentication failures are
     // handled explicitly here so they keep their correct status codes instead of falling
@@ -59,7 +63,15 @@ public class GlobalExceptionHandler {
         body.put("timestamp", LocalDateTime.now().toString());
         body.put("status", status.value());
         body.put("error", status.getReasonPhrase());
-        body.put("message", ex.getMessage());
+        if (status == HttpStatus.INTERNAL_SERVER_ERROR) {
+            // Never leak raw exception text (SQL constraint names, NPE internals, file paths,
+            // etc.) on a genuine server error - the curated statuses below (400/401/403/404)
+            // already have client-facing messages by design, only this case is unvetted.
+            log.error("Unhandled exception on {}", request.getDescription(false), ex);
+            body.put("message", "An unexpected error occurred.");
+        } else {
+            body.put("message", ex.getMessage());
+        }
         body.put("path", request.getDescription(false).replace("uri=", ""));
         return ResponseEntity.status(status).body(body);
     }

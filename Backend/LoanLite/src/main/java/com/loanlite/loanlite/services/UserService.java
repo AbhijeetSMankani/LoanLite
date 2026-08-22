@@ -44,7 +44,12 @@ public class UserService {
     @Transactional
     public User updateUser(Long id, User user) {
         User existing = userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
-        if (user.getEmail() != null) existing.setEmail(user.getEmail());
+        if (user.getEmail() != null && !user.getEmail().equals(existing.getEmail())) {
+            if (userRepository.findByEmail(user.getEmail()).filter(u -> !u.getId().equals(id)).isPresent()) {
+                throw new IllegalArgumentException("email already in use");
+            }
+            existing.setEmail(user.getEmail());
+        }
         if (user.getFirstName() != null) existing.setFirstName(user.getFirstName());
         if (user.getLastName() != null) existing.setLastName(user.getLastName());
         if (user.getPhone() != null) existing.setPhone(user.getPhone());

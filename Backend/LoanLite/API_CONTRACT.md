@@ -55,12 +55,18 @@ Status mapping the frontend should expect:
 |---|---|---|
 | `AccessDeniedException` (`@PreAuthorize` failure) | 403 | |
 | `AuthenticationException` (bad login credentials) | 401 | |
-| `IllegalArgumentException` | 400 | e.g. duplicate email, wrong current password |
+| `IllegalArgumentException` | 400 | e.g. duplicate email (create **and** update, `featuresTodo.csv` task 9), wrong current password |
 | `IllegalStateException` | 404 | used by `AuthController`'s "authenticated user not found" checks |
 | `RuntimeException` whose message contains `"not found"` (case-insensitive) | 404 | this is how every service reports "no such id" - there's no dedicated `NotFoundException` type |
-| any other `RuntimeException` | 500 | |
-| anything else | 500 | |
+| any other `RuntimeException` | 500 | `message` is a generic `"An unexpected error occurred."`, **not** the real exception text (`featuresTodo.csv` task 9, "Done") - the real message is logged server-side only. Was previously the raw `ex.getMessage()`, which could leak SQL constraint text, NPE internals, or file paths. |
+| anything else | 500 | same generic-message treatment as above |
 | no/invalid/expired JWT on a protected route | 401 | via `HttpStatusEntryPoint` |
+
+Every other status above (400/401/403/404) still returns the real `ex.getMessage()` in the body -
+those messages are deliberately written to be client-facing (e.g. `"email already in use"`,
+`"Loan application not found with id: 99"`). Only the generic-500 fallback had its message replaced,
+since that's the only case where the underlying exception type (and therefore its message content)
+isn't controlled by this codebase.
 
 **Manual 403s:** several endpoints return `403 Forbidden` from an `if` check in the controller rather than
 throwing - the body in those cases is **empty** (`ResponseEntity.status(FORBIDDEN).build()`), not the
@@ -191,7 +197,7 @@ rule enforced manually in the method body (these do **not** show up as an annota
 | `POST /api/users` | `ROLE_ADMIN` only | Full `User` JSON: `{ email, passwordHash /* plaintext in, hash out */, firstName, lastName, phone, role }` | `201` created `User` (raw entity, includes `passwordHash`). |
 | `GET /api/users/{id}` | Any authenticated user, **plus**: caller must be `ROLE_ADMIN` **or** `caller.email == target.email` | none | `200` `User`. `403` (empty body) if neither condition holds. |
 | `GET /api/users` | `ROLE_ADMIN` only | none | `200` `User[]` - every user in the system, including `passwordHash`. |
-| `PUT /api/users/{id}` | Any authenticated user, **plus** same admin-or-self rule as `GET /{id}` | Full `User` JSON (any field null-safe partial update - only non-null fields overwrite) | `200` updated `User`. `403` (empty body) if not admin/self. **`400`** (via `IllegalArgumentException` → global handler) if the caller targets **their own account** and sends a `role` different from their current one - this applies to admins too (self-role-change is blocked for everyone, not just non-admins - a prior version of this doc got that backwards). For a minimal, dedicated way to change *someone else's* role, prefer `PATCH /api/admin/users/{id}/role` (§3.8) over this full-entity endpoint. |
+| `PUT /api/users/{id}` | Any authenticated user, **plus** same admin-or-self rule as `GET /{id}` | Full `User` JSON (any field null-safe partial update - only non-null fields overwrite) | `200` updated `User`. `403` (empty body) if not admin/self. **`400`** (via `IllegalArgumentException` → global handler) if the caller targets **their own account** and sends a `role` different from their current one - this applies to admins too (self-role-change is blocked for everyone, not just non-admins - a prior version of this doc got that backwards). **`400`** also if `email` is set to a value already in use by a *different* user (`featuresTodo.csv` task 9, "Done") - mirrors `POST /api/users`' existing duplicate-email check; before this, a duplicate email hit the database's unique constraint directly and leaked a raw `500`. For a minimal, dedicated way to change *someone else's* role, prefer `PATCH /api/admin/users/{id}/role` (§3.8) over this full-entity endpoint. |
 | `DELETE /api/users/{id}` | `ROLE_ADMIN` only | none | `204` no content. |
 
 ### 3.3 `LoanApplicationController` - mounted at **both** `/api/loan-applications` and `/api/applications` (identical routes on either prefix)
