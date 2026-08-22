@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -45,20 +46,22 @@ public class UnderwriterController {
 
     // POST /api/underwriter/claim/{applicationId}
     // Assigns the currently logged-in underwriter to the application and moves it under review.
+    // Uses an atomic conditional UPDATE (featuresTodo.csv task 6) instead of read-check-then-save:
+    // two underwriters racing to claim the same application can no longer both pass the status
+    // check before either write commits, since the WHERE clause re-checks status as part of the
+    // same database write. The loser gets 409, not a silent 200.
     @PostMapping("/claim/{applicationId}")
     @PreAuthorize("hasRole('UNDERWRITER')")
     public ResponseEntity<LoanApplication> claimApplication(@PathVariable Long applicationId) {
-        LoanApplication existing = loanApplicationService.getApplication(applicationId);
-        if (existing.getStatus() == null || !existing.getStatus().equalsIgnoreCase("Verified")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(existing);
+        User underwriter = accessGuard.currentUser();
+        Optional<LoanApplication> claimed = loanApplicationService.claimForUnderwriter(
+                applicationId, "Verified", "Under Review", underwriter.getId());
+        if (claimed.isEmpty()) {
+            LoanApplication current = loanApplicationService.getApplication(applicationId);
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(current);
         }
 
-        User underwriter = accessGuard.currentUser();
-
-        existing.setUnderwriter(underwriter);
-        existing.setStatus("Under Review");
-        existing.setUpdatedAt(LocalDateTime.now());
-        LoanApplication updated = loanApplicationService.updateApplication(applicationId, existing);
+        LoanApplication updated = claimed.get();
         historyService.log(updated, underwriter, "UNDERWRITER_CLAIMED",
                 "Underwriter claimed the application for underwriting review.");
         return ResponseEntity.ok(updated);

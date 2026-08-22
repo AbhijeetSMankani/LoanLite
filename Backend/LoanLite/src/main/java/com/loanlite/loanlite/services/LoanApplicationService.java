@@ -127,6 +127,26 @@ public class LoanApplicationService {
         return loanApplicationRepository.save(existing);
     }
 
+    // Atomic conditional claim, closing the race between two staff members claiming the same
+    // application (featuresTodo.csv task 6): a single UPDATE ... WHERE id = ? AND status = ?
+    // re-checks status at the database level as part of the write itself, instead of the old
+    // read-check-then-save pattern where two concurrent callers could both pass the Java-side
+    // check before either write landed. Empty means someone else's write already moved the
+    // status - the caller lost the race. Neither method pre-loads the entity into this
+    // transaction's persistence context, so the getApplication(id) below always issues a fresh
+    // SELECT and reflects the update just performed, rather than a stale cached instance.
+    @Transactional
+    public Optional<LoanApplication> claimForProcessor(Long id, String expectedStatus, String newStatus, Long processorId) {
+        int updated = loanApplicationRepository.claimForProcessor(id, expectedStatus, newStatus, processorId, LocalDateTime.now());
+        return updated == 0 ? Optional.empty() : Optional.of(getApplication(id));
+    }
+
+    @Transactional
+    public Optional<LoanApplication> claimForUnderwriter(Long id, String expectedStatus, String newStatus, Long underwriterId) {
+        int updated = loanApplicationRepository.claimForUnderwriter(id, expectedStatus, newStatus, underwriterId, LocalDateTime.now());
+        return updated == 0 ? Optional.empty() : Optional.of(getApplication(id));
+    }
+
     public void deleteApplication(Long id) {
         if (!loanApplicationRepository.existsById(id)) {
             throw new RuntimeException("Loan application not found with id: " + id);

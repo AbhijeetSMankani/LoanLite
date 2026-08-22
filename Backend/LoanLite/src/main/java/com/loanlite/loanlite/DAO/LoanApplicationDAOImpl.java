@@ -1,12 +1,14 @@
 package com.loanlite.loanlite.DAO;
 
 import com.loanlite.loanlite.entities.LoanApplication;
+import com.loanlite.loanlite.entities.User;
 import com.loanlite.loanlite.DAO.LoanApplicationDAO;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -88,5 +90,31 @@ public class LoanApplicationDAOImpl implements LoanApplicationDAO {
         }
 
         return query.getResultList();
+    }
+
+    @Override
+    public int claimForProcessor(Long id, String expectedStatus, String newStatus, Long processorId, LocalDateTime updatedAt) {
+        return entityManager.createQuery(
+                        "UPDATE LoanApplication l SET l.status = :newStatus, l.processor = :processor, l.updatedAt = :updatedAt "
+                                + "WHERE l.id = :id AND l.status = :expectedStatus")
+                .setParameter("newStatus", newStatus)
+                .setParameter("processor", entityManager.getReference(User.class, processorId))
+                .setParameter("updatedAt", updatedAt)
+                .setParameter("id", id)
+                .setParameter("expectedStatus", expectedStatus)
+                .executeUpdate();
+    }
+
+    @Override
+    public int claimForUnderwriter(Long id, String expectedStatus, String newStatus, Long underwriterId, LocalDateTime updatedAt) {
+        return entityManager.createQuery(
+                        "UPDATE LoanApplication l SET l.status = :newStatus, l.underwriter = :underwriter, l.updatedAt = :updatedAt "
+                                + "WHERE l.id = :id AND l.status = :expectedStatus")
+                .setParameter("newStatus", newStatus)
+                .setParameter("underwriter", entityManager.getReference(User.class, underwriterId))
+                .setParameter("updatedAt", updatedAt)
+                .setParameter("id", id)
+                .setParameter("expectedStatus", expectedStatus)
+                .executeUpdate();
     }
 }

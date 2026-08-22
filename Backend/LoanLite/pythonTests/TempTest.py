@@ -387,8 +387,9 @@ else:
         record((body.get("underwriter") or {}).get("id") == underwriter_id,
                "underwriter is assigned on task-2 application")
 
-    call("POST", f"/underwriter/claim/{task2_app_id}", token=underwriter_token, expect=400,
-         label="underwriter claims task-2 application again (no longer Verified, should fail)")
+    call("POST", f"/underwriter/claim/{task2_app_id}", token=underwriter_token, expect=409,
+         label="underwriter claims task-2 application again (no longer Verified, should conflict) "
+               "- task 6's atomic conditional claim returns 409 for any 'status no longer matches' case")
 
     for doc_id in task2_doc_ids:
         guarded(

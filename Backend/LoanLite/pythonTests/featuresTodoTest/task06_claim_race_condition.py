@@ -120,12 +120,13 @@ else:
              "this itself is a failure signal already captured by the 'exactly one succeeded' check above")
 
     # A third claim attempt (by whichever side lost, or either if the race was inconclusive)
-    # against the now-claimed application must not succeed either.
-    call("POST", f"/processor/claim/{app_a_id}", token=users.processor2.token, expect=400,
-         label="a further claim attempt after the application is already claimed (should be 400, no longer Submitted) "
-               "- note: 409 would also be a defensible answer here depending on the chosen fix, "
-               "but by this point status has definitely moved off Submitted so 400 (the existing precondition "
-               "check) is the more likely outcome; treat a 409 here as acceptable too if this assertion is too rigid")
+    # against the now-claimed application must not succeed either. The implementation (an atomic
+    # conditional UPDATE ... WHERE status = ?) returns 409 uniformly for "0 rows changed" whether
+    # that's because a concurrent claim won the race or because the application was already
+    # claimed some time ago - both are the same underlying condition, so one status code for both.
+    call("POST", f"/processor/claim/{app_a_id}", token=users.processor2.token, expect=409,
+         label="a further claim attempt after the application is already claimed (should be 409 conflict, "
+               "no longer Submitted)")
 
     cleanup_application(app_a_id, users.admin)
 

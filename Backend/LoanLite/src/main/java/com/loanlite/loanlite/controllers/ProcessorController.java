@@ -3,6 +3,7 @@ package com.loanlite.loanlite.controllers;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,21 +56,23 @@ public class ProcessorController {
     }
 
     // POST /api/processor/claim/{applicationId}
-    // Assigns the currently logged-in processor to the application and changes its state to Under Verification.
+    // Assigns the currently logged-in processor to the application and changes its state to Under
+    // Verification. Uses an atomic conditional UPDATE (featuresTodo.csv task 6) instead of
+    // read-check-then-save: two processors racing to claim the same application can no longer
+    // both pass the status check before either write commits, since the WHERE clause re-checks
+    // status as part of the same database write. The loser gets 409, not a silent 200.
     @PostMapping("/claim/{applicationId}")
     @PreAuthorize("hasRole('PROCESSOR')")
     public ResponseEntity<LoanApplication> claimApplication(@PathVariable Long applicationId) {
-        LoanApplication existing = loanApplicationService.getApplication(applicationId);
-        if (existing.getStatus() == null || !existing.getStatus().equalsIgnoreCase("Submitted")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(existing);
+        User processor = accessGuard.currentUser();
+        Optional<LoanApplication> claimed = loanApplicationService.claimForProcessor(
+                applicationId, "Submitted", "Under Verification", processor.getId());
+        if (claimed.isEmpty()) {
+            LoanApplication current = loanApplicationService.getApplication(applicationId);
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(current);
         }
 
-        User processor = accessGuard.currentUser();
-
-        existing.setProcessor(processor);
-        existing.setStatus("Under Verification");
-        existing.setUpdatedAt(LocalDateTime.now());
-        LoanApplication updated = loanApplicationService.updateApplication(applicationId, existing);
+        LoanApplication updated = claimed.get();
         historyService.log(updated, processor, "PROCESSOR_CLAIMED", "Processor claimed the application for review.");
         return ResponseEntity.ok(updated);
     }
