@@ -33,8 +33,10 @@ a frontend-side fix.
 - **There is no `ROLE_APPLICANT`.** A self-registered user always gets `ROLE_USER`, and `ROLE_USER` *is*
   the applicant role.
 - There is no self-serve role upgrade endpoint. `ROLE_ADMIN` / `ROLE_PROCESSOR` / `ROLE_UNDERWRITER`
-  accounts only exist because someone set `role` directly in the DB (or an admin used `PUT /api/users/{id}`).
-  A real frontend build has no way to create a processor/underwriter/admin test account through the UI.
+  accounts get there because someone set `role` directly in the DB, or an admin called
+  `PATCH /api/admin/users/{id}/role` (§3.8, the recommended way) or the generic `PUT /api/users/{id}`
+  (§3.2). A real frontend build has no way to create a processor/underwriter/admin test account through
+  the UI unless an admin account already exists to promote it.
 - `@PreAuthorize("hasRole('X')")` checks against `ROLE_X` per Spring Security convention - you don't add
   the `ROLE_` prefix yourself when calling these endpoints, it's just internal.
 
@@ -186,7 +188,7 @@ rule enforced manually in the method body (these do **not** show up as an annota
 | `POST /api/users` | `ROLE_ADMIN` only | Full `User` JSON: `{ email, passwordHash /* plaintext in, hash out */, firstName, lastName, phone, role }` | `201` created `User` (raw entity, includes `passwordHash`). |
 | `GET /api/users/{id}` | Any authenticated user, **plus**: caller must be `ROLE_ADMIN` **or** `caller.email == target.email` | none | `200` `User`. `403` (empty body) if neither condition holds. |
 | `GET /api/users` | `ROLE_ADMIN` only | none | `200` `User[]` - every user in the system, including `passwordHash`. |
-| `PUT /api/users/{id}` | Any authenticated user, **plus** same admin-or-self rule as `GET /{id}` | Full `User` JSON (any field null-safe partial update - only non-null fields overwrite) | `200` updated `User`. `403` (empty body) if not admin/self. **`400`** (via `IllegalArgumentException` → global handler) if a *non-admin* self-update tries to change their own `role` field to something different from their current role - i.e. you cannot self-promote, but an admin *can* change anyone's role including their own. |
+| `PUT /api/users/{id}` | Any authenticated user, **plus** same admin-or-self rule as `GET /{id}` | Full `User` JSON (any field null-safe partial update - only non-null fields overwrite) | `200` updated `User`. `403` (empty body) if not admin/self. **`400`** (via `IllegalArgumentException` → global handler) if the caller targets **their own account** and sends a `role` different from their current one - this applies to admins too (self-role-change is blocked for everyone, not just non-admins - a prior version of this doc got that backwards). For a minimal, dedicated way to change *someone else's* role, prefer `PATCH /api/admin/users/{id}/role` (§3.8) over this full-entity endpoint. |
 | `DELETE /api/users/{id}` | `ROLE_ADMIN` only | none | `204` no content. |
 
 ### 3.3 `LoanApplicationController` - mounted at **both** `/api/loan-applications` and `/api/applications` (identical routes on either prefix)
@@ -279,6 +281,16 @@ only way to set `decision`/`decisionComments`/a final status is the generic `PUT
 `decision` values yet - decide this with the team before wiring up an "Approve/Reject" button; whatever
 strings you pick are not currently read or validated by anything server-side.
 
+### 3.8 `AdminController` - `/api/admin`
+
+| Method & Path | Access | Request Body | Success Response |
+|---|---|---|---|
+| `PATCH /api/admin/users/{id}/role` | `ROLE_ADMIN` only. Cannot target the caller's own account with a different role (same rule as §3.2's `PUT /api/users/{id}`) | `{ role: string }` - must be one of `ROLE_USER`, `ROLE_PROCESSOR`, `ROLE_UNDERWRITER`, `ROLE_ADMIN` | `200` updated `User` (only `role` changes - unlike `PUT /api/users/{id}`, no other field can be touched through this endpoint even if included in the body). `400` for an unknown/blank role or a self-role-change attempt. `404` if the target id doesn't exist. |
+
+This is the recommended way to promote/demote a user going forward - prefer it over `PUT /api/users/{id}`
+(§3.2) when a role change is all you need, since that endpoint's full-entity body shape makes it easy to
+accidentally also send (and overwrite) email/name/password fields in the same call.
+
 ---
 
 ## 4. Quick access-control summary
@@ -288,7 +300,7 @@ strings you pick are not currently read or validated by anything server-side.
 | `ROLE_USER` (applicant) | Register/login/own profile. Create/view/edit-while-Draft/submit/withdraw **their own** applications only. Upload documents to any application id (gap, §3.3). View/edit/delete any document (gap, §3.4). Read (not write) their own applications' history entries - writes are `ROLE_ADMIN` only (§3.5). |
 | `ROLE_PROCESSOR` | Everything a normal authenticated user can reach via the gaps above, **plus** work-list/claim/verify/request-documents/update-document-status under `/api/processor` and `/api/documents`. Sees only applications where they're the assigned processor via `GET /api/applications` (list is scoped), but can still read/write *any* application by id directly since `/api/documents/*` aren't ownership-checked (application-history reads *are* ownership-scoped, §3.5). |
 | `ROLE_UNDERWRITER` | Same pattern as processor, for `/api/underwriter` work-list/claim. No dedicated decision endpoint (§3.7). |
-| `ROLE_ADMIN` | Full access everywhere: only role that can create/list/delete users, delete applications, and create documents/history directly. Cannot create a loan application via `POST /api/applications` (role check is literally `hasRole('USER')`, not "not staff"). |
+| `ROLE_ADMIN` | Full access everywhere: only role that can create/list/delete users, delete applications, create/update/delete documents/history entries directly, and assign roles via the dedicated `PATCH /api/admin/users/{id}/role` (§3.8). Cannot create a loan application via `POST /api/applications` (role check is literally `hasRole('USER')`, not "not staff"), and cannot change their own role even via this dedicated endpoint. |
 
 ---
 
