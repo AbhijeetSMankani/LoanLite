@@ -342,6 +342,7 @@ against an external spec, unlike the status names themselves which were explicit
 | Method & Path | Access | Request Body | Success Response |
 |---|---|---|---|
 | `PATCH /api/admin/users/{id}/role` | `ROLE_ADMIN` only. Cannot target the caller's own account with a different role (same rule as §3.2's `PUT /api/users/{id}`) | `{ role: string }` - must be one of `ROLE_USER`, `ROLE_PROCESSOR`, `ROLE_UNDERWRITER`, `ROLE_ADMIN` | `200` updated `User` (only `role` changes - unlike `PUT /api/users/{id}`, no other field can be touched through this endpoint even if included in the body). `400` for an unknown/blank role or a self-role-change attempt. `404` if the target id doesn't exist. |
+| `GET /api/admin/stats` | `ROLE_ADMIN` only (`backendTodo.csv` task 6, "Done") | none | `200` `{ totalApplications: number, byStatus: { <status>: number, ... }, createdThisMonth: number, approvedThisMonth: number, rejectedThisMonth: number }`. `byStatus` is a full breakdown across every status value (a single `GROUP BY` query, not one `COUNT` per status), `totalApplications` is their sum. `createdThisMonth` counts by `createdAt` (precise). `approvedThisMonth`/`rejectedThisMonth` count `Accepted`/`Rejected` applications by `updatedAt` falling in the current calendar month - an **approximation**, since there's no dedicated `decidedAt` timestamp on `LoanApplication`; accurate in practice because `Accepted`/`Rejected` are terminal states nothing else normally touches afterward, but not a literal decision timestamp. Directly answers the charter's own example ("how many loans were approved this month"). |
 
 This is the recommended way to promote/demote a user going forward - prefer it over `PUT /api/users/{id}`
 (§3.2) when a role change is all you need, since that endpoint's full-entity body shape makes it easy to
@@ -387,7 +388,7 @@ If you're porting an existing frontend rather than building fresh, these are alr
 - Processor flow: work-list → claim → verify.
 - Underwriter flow: work-list → claim → decision (accept/reject, §3.7) or return-to-processor (§3.7) if
   something needs another look before a final decision.
-- Admin: user CRUD, application delete.
+- Admin: user CRUD, application delete, dashboard stats (§3.8).
 - **Reminder**: every flow above that lists something (own applications, work-lists) now reads a
   paginated `Page<T>` response (§1), not a bare array - read `response.content`, not `response` itself.
 

@@ -13,9 +13,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -172,6 +175,32 @@ public class LoanApplicationService {
         loanApplicationRepository.deleteById(id);
     }
 
+    // Admin analytics (backendTodo.csv task 6): a small, fixed set of counts rather than a
+    // generic reporting/charting endpoint - the charter names only one example ("how many loans
+    // were approved this month"), not a full spec. approvedThisMonth/rejectedThisMonth use
+    // updatedAt as an approximate decision timestamp (see the repository query's own comment) -
+    // there's no dedicated decidedAt field on LoanApplication.
+    public Map<String, Object> getStats() {
+        LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
 
+        Map<String, Long> byStatus = new LinkedHashMap<>();
+        long total = 0;
+        for (Object[] row : loanApplicationRepository.countGroupedByStatus()) {
+            String status = (String) row[0];
+            long count = (Long) row[1];
+            byStatus.put(status, count);
+            total += count;
+        }
+
+        Map<String, Object> stats = new LinkedHashMap<>();
+        stats.put("totalApplications", total);
+        stats.put("byStatus", byStatus);
+        stats.put("createdThisMonth", loanApplicationRepository.countByCreatedAtGreaterThanEqual(monthStart));
+        stats.put("approvedThisMonth",
+                loanApplicationRepository.countByStatusAndUpdatedAtGreaterThanEqual("Accepted", monthStart));
+        stats.put("rejectedThisMonth",
+                loanApplicationRepository.countByStatusAndUpdatedAtGreaterThanEqual("Rejected", monthStart));
+        return stats;
+    }
 
 }
