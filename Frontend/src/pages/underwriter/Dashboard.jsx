@@ -20,13 +20,16 @@ const UnderwriterDashboard = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const response = await loanService.getApplicationsForUnderwriter(1, 100);
+        const [workListRes, claimedRes] = await Promise.all([
+          loanService.getUnderwriterWorkList(),
+          loanService.getClaimedApplicationsForUnderwriter(),
+        ]);
 
-        const applications = response.data || [];
+        const claimed = claimedRes.data || [];
         setStats({
-          pending: applications.filter((a) => a.status === 'pending-decision').length,
-          approved: applications.filter((a) => a.status === 'approved').length,
-          rejected: applications.filter((a) => a.status === 'rejected').length,
+          pending: (workListRes.data || []).length,
+          approved: claimed.filter((a) => a.status?.toLowerCase() === 'accepted').length,
+          rejected: claimed.filter((a) => a.status?.toLowerCase() === 'rejected').length,
         });
       } catch (err) {
         setError(err.message || 'Failed to load statistics');
@@ -54,7 +57,7 @@ const UnderwriterDashboard = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
           <StatCard title="Pending Decision" value={stats.pending} variant="warning" />
-          <StatCard title="Approved" value={stats.approved} variant="success" />
+          <StatCard title="Accepted" value={stats.approved} variant="success" />
           <StatCard title="Rejected" value={stats.rejected} variant="danger" />
         </div>
 

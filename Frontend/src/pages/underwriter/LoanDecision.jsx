@@ -7,7 +7,7 @@ import Card from '../../components/Card';
 import EmptyState from '../../components/EmptyState';
 import loanService from '../../services/loanService';
 import { fullName } from '../../utils/role';
-import { ArrowLeft, CheckCircle2, XCircle, CornerUpLeft, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 
 const LoanDecision = () => {
   const { id } = useParams();
@@ -17,7 +17,7 @@ const LoanDecision = () => {
   const [success, setSuccess] = useState('');
   const [application, setApplication] = useState(null);
   const [rules, setRules] = useState(null);
-  const [decision, setDecision] = useState('approve');
+  const [decision, setDecision] = useState('ACCEPT');
   const [comments, setComments] = useState('');
 
   const fetchApplicationDetails = async () => {
@@ -43,11 +43,11 @@ const LoanDecision = () => {
   const handleSubmitDecision = async () => {
     try {
       setLoading(true);
-      await loanService.makeDecision(id, { decision, comments });
-      setSuccess(`Application ${decision === 'approve' ? 'approved' : decision === 'reject' ? 'rejected' : 'referred back'} successfully.`);
+      await loanService.decideApplication(id, decision, comments);
+      setSuccess(`Application ${decision === 'ACCEPT' ? 'accepted' : 'rejected'} successfully.`);
       setTimeout(() => navigate('/underwriter/applications'), 1500);
     } catch (err) {
-      setError(err.message || 'Failed to submit decision');
+      setError(err.response?.data?.message || 'Failed to submit decision');
       setLoading(false);
     }
   };
@@ -63,9 +63,8 @@ const LoanDecision = () => {
   }
 
   const decisionOptions = [
-    { value: 'approve', label: 'Approve', icon: CheckCircle2, color: 'text-green-600' },
-    { value: 'reject', label: 'Reject', icon: XCircle, color: 'text-red-600' },
-    { value: 'refer', label: 'Refer Back', icon: CornerUpLeft, color: 'text-primary-600' },
+    { value: 'ACCEPT', label: 'Accept', icon: CheckCircle2, color: 'text-green-600' },
+    { value: 'REJECT', label: 'Reject', icon: XCircle, color: 'text-red-600' },
   ];
 
   return (
@@ -194,12 +193,12 @@ const LoanDecision = () => {
             Cancel
           </Button>
           <Button
-            variant={decision === 'approve' ? 'success' : decision === 'reject' ? 'danger' : 'warning'}
+            variant={decision === 'ACCEPT' ? 'success' : 'danger'}
             onClick={handleSubmitDecision}
             loading={loading}
             disabled={!comments}
           >
-            {decision.charAt(0).toUpperCase() + decision.slice(1)} Application
+            {decision === 'ACCEPT' ? 'Accept' : 'Reject'} Application
           </Button>
         </div>
       </div>

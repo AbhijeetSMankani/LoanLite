@@ -8,21 +8,29 @@ import loanService from '../../services/loanService';
 import { fullName } from '../../utils/role';
 import { Inbox } from 'lucide-react';
 
-const FILTERS = ['all', 'submitted', 'in-review', 'verified'];
+const TABS = [
+  { key: 'available', label: 'Available' },
+  { key: 'mine', label: 'My Queue' },
+];
 
 const ProcessorApplications = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [applications, setApplications] = useState([]);
-  const [filter, setFilter] = useState('submitted');
-  const [page, setPage] = useState(1);
+  const [claimingId, setClaimingId] = useState(null);
+  const [available, setAvailable] = useState([]);
+  const [claimed, setClaimed] = useState([]);
+  const [tab, setTab] = useState('available');
 
   const fetchApplications = async () => {
     try {
       setLoading(true);
-      const response = await loanService.getApplicationsForProcessor(page, 10);
-      setApplications(response.data || []);
+      const [workListRes, claimedRes] = await Promise.all([
+        loanService.getProcessorWorkList(),
+        loanService.getClaimedApplicationsForProcessor(),
+      ]);
+      setAvailable(workListRes.data || []);
+      setClaimed(claimedRes.data || []);
     } catch (err) {
       setError(err.message || 'Failed to load applications');
     } finally {
@@ -32,20 +40,31 @@ const ProcessorApplications = () => {
 
   useEffect(() => {
     fetchApplications();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page]);
+  }, []);
 
-  const filteredApplications =
-    filter === 'all' ? applications : applications.filter((app) => app.status === filter);
+  const handleClaim = async (applicationId) => {
+    try {
+      setClaimingId(applicationId);
+      await loanService.claimApplication(applicationId);
+      await fetchApplications();
+      setTab('mine');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to claim application — it may already be claimed.');
+    } finally {
+      setClaimingId(null);
+    }
+  };
 
   if (loading) return <Loader fullScreen />;
+
+  const rows = tab === 'available' ? available : claimed;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Applications for Verification</h1>
-          <p className="text-gray-500 mt-1">Review and verify loan applications</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Applications</h1>
+          <p className="text-gray-500 mt-1">Claim submitted applications and verify their documents</p>
         </div>
 
         {error && (
@@ -53,22 +72,30 @@ const ProcessorApplications = () => {
         )}
 
         <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
-          {FILTERS.map((status) => (
+          {TABS.map((t) => (
             <button
-              key={status}
-              onClick={() => setFilter(status)}
-              className={`px-4 py-1.5 rounded-full text-sm font-semibold capitalize transition-colors whitespace-nowrap ${
-                filter === status ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition-colors whitespace-nowrap ${
+                tab === t.key ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
-              {status}
+              {t.label} ({t.key === 'available' ? available.length : claimed.length})
             </button>
           ))}
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-          {filteredApplications.length === 0 ? (
-            <EmptyState icon={Inbox} title="No applications to process" message="Nothing matches this filter right now." />
+          {rows.length === 0 ? (
+            <EmptyState
+              icon={Inbox}
+              title={tab === 'available' ? 'No applications waiting' : 'You have no claimed applications'}
+              message={
+                tab === 'available'
+                  ? 'Nothing has been submitted for verification right now.'
+                  : 'Claim an application from the Available tab to start working on it.'
+              }
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px]">
@@ -83,7 +110,7 @@ const ProcessorApplications = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredApplications.map((application) => (
+                  {rows.map((application) => (
                     <tr key={application.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
                       <td className="px-6 py-4 text-sm font-semibold text-gray-800">#{application.id}</td>
                       <td className="px-6 py-4 text-sm text-gray-800">{fullName(application.applicant)}</td>
@@ -97,15 +124,26 @@ const ProcessorApplications = () => {
                         {new Date(application.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() =>
-                            navigate(`/processor/document-verification?applicationId=${application.id}`)
-                          }
-                        >
-                          Review
-                        </Button>
+                        {tab === 'available' ? (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            loading={claimingId === application.id}
+                            onClick={() => handleClaim(application.id)}
+                          >
+                            Claim
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() =>
+                              navigate(`/processor/document-verification?applicationId=${application.id}`)
+                            }
+                          >
+                            Review
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -114,18 +152,6 @@ const ProcessorApplications = () => {
             </div>
           )}
         </div>
-
-        {filteredApplications.length > 0 && (
-          <div className="mt-6 flex justify-center items-center gap-2">
-            <Button variant="secondary" onClick={() => setPage(Math.max(1, page - 1))} disabled={page === 1}>
-              Previous
-            </Button>
-            <span className="px-4 py-2 text-gray-700 font-semibold text-sm">Page {page}</span>
-            <Button variant="secondary" onClick={() => setPage(page + 1)} disabled={filteredApplications.length < 10}>
-              Next
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );

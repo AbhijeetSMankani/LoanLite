@@ -10,7 +10,7 @@ import loanService from '../../services/loanService';
 import documentService from '../../services/documentService';
 import StatusBadge from '../../components/StatusBadge';
 import { fullName } from '../../utils/role';
-import { FileSearch } from 'lucide-react';
+import { FileSearch, AlertTriangle } from 'lucide-react';
 
 const DocumentVerification = () => {
   const [searchParams] = useSearchParams();
@@ -18,12 +18,16 @@ const DocumentVerification = () => {
   const applicationId = searchParams.get('applicationId');
 
   const [loading, setLoading] = useState(Boolean(applicationId));
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
   const [application, setApplication] = useState(null);
   const [documents, setDocuments] = useState([]);
+  const [missingRequiredDocuments, setMissingRequiredDocuments] = useState([]);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [verificationNotes, setVerificationNotes] = useState('');
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestMessage, setRequestMessage] = useState('');
 
   const fetchApplicationDetails = async () => {
     try {
@@ -33,10 +37,42 @@ const DocumentVerification = () => {
 
       const docsResponse = await documentService.getUploadedDocuments(applicationId);
       setDocuments(docsResponse.data || []);
+      setMissingRequiredDocuments(docsResponse.missingRequiredDocuments || []);
     } catch (err) {
       setError(err.message || 'Failed to load application');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const allDocumentsVerified =
+    missingRequiredDocuments.length === 0 &&
+    documents.length > 0 &&
+    documents.every((doc) => doc.verificationStatus?.toUpperCase() === 'VERIFIED');
+
+  const handleRequestDocuments = async () => {
+    try {
+      setActionLoading(true);
+      await documentService.requestDocuments(applicationId, requestMessage);
+      setShowRequestModal(false);
+      setRequestMessage('');
+      await fetchApplicationDetails();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to request documents');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleVerifyApplication = async () => {
+    try {
+      setActionLoading(true);
+      await loanService.verifyApplication(applicationId);
+      navigate('/processor/applications');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to verify application');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -123,9 +159,40 @@ const DocumentVerification = () => {
           </div>
         </Card>
 
+        {/* Missing Documents Banner */}
+        {missingRequiredDocuments.length > 0 && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-amber-800 text-sm">
+                Missing required documents: <span className="font-semibold">{missingRequiredDocuments.join(', ')}</span>
+              </p>
+            </div>
+            <Button variant="warning" size="sm" onClick={() => setShowRequestModal(true)}>
+              Request Documents
+            </Button>
+          </div>
+        )}
+
         {/* Documents Section */}
-        <Card>
-          <h3 className="text-lg font-bold text-gray-800 mb-6">Documents to Verify</h3>
+        <Card className="mb-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-gray-800">Documents to Verify</h3>
+            <Button
+              variant="success"
+              size="sm"
+              loading={actionLoading}
+              disabled={!allDocumentsVerified}
+              onClick={handleVerifyApplication}
+              title={
+                allDocumentsVerified
+                  ? 'Mark this application as verified'
+                  : 'All required documents must be verified before you can verify the application'
+              }
+            >
+              Verify Application
+            </Button>
+          </div>
 
           {documents.length === 0 ? (
             <p className="text-gray-500 text-sm py-4">No documents uploaded yet</p>
@@ -215,6 +282,44 @@ const DocumentVerification = () => {
             value={verificationNotes}
             onChange={(e) => setVerificationNotes(e.target.value)}
             placeholder="Add any notes about the document"
+          />
+        </Modal>
+
+        {/* Request Documents Modal */}
+        <Modal
+          isOpen={showRequestModal}
+          onClose={() => {
+            setShowRequestModal(false);
+            setRequestMessage('');
+          }}
+          title="Request Missing Documents"
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowRequestModal(false);
+                  setRequestMessage('');
+                }}
+              >
+                Cancel
+              </Button>
+              <Button variant="warning" loading={actionLoading} onClick={handleRequestDocuments}>
+                Send Request
+              </Button>
+            </>
+          }
+        >
+          <p className="text-gray-600 text-sm mb-4">
+            This marks the application as waiting on the applicant for {missingRequiredDocuments.join(', ') || 'some documents'}.
+          </p>
+          <Input
+            label="Message (optional)"
+            name="message"
+            type="textarea"
+            value={requestMessage}
+            onChange={(e) => setRequestMessage(e.target.value)}
+            placeholder="Add a note for the applicant"
           />
         </Modal>
       </div>

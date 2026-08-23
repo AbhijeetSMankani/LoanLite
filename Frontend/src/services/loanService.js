@@ -10,8 +10,6 @@ const currentUserId = () => {
 
 const paginate = (list, page, limit) => list.slice((page - 1) * limit, page * limit);
 
-const decisionStatusMap = { approve: 'approved', reject: 'rejected', refer: 'referred' };
-
 const loanService = {
   createApplication: async (applicationData) => {
     const { data } = await axiosInstance.post('/loan-applications', {
@@ -52,27 +50,84 @@ const loanService = {
     return { data };
   },
 
-  getApplicationsForProcessor: async (page = 1, limit = 10) => {
-    const { data } = await axiosInstance.get('/loan-applications');
-    return { data: paginate(data, page, limit) };
+  // The pool of unclaimed applications waiting for an underwriter — GET
+  // /underwriter/work-list is hardcoded server-side to status "Verified".
+  getUnderwriterWorkList: async () => {
+    const { data } = await axiosInstance.get('/underwriter/work-list');
+    return { data };
   },
 
-  getApplicationsForUnderwriter: async (page = 1, limit = 10) => {
+  // Applications this underwriter has already claimed. Same auto-scoping as
+  // getClaimedApplicationsForProcessor below, but forced to underwriterId.
+  getClaimedApplicationsForUnderwriter: async () => {
     const { data } = await axiosInstance.get('/loan-applications');
-    return { data: paginate(data, page, limit) };
+    return { data };
+  },
+
+  // POST /underwriter/claim/{id} assigns the caller as underwriter and sets
+  // status to "Under Review" directly — no rename hack needed here since we
+  // control this endpoint's exact status strings.
+  claimApplicationAsUnderwriter: async (applicationId) => {
+    const { data } = await axiosInstance.post(`/underwriter/claim/${applicationId}`);
+    return { data };
+  },
+
+  // decision is 'ACCEPT' or 'REJECT'; the backend sets status to "Accepted"
+  // or "Rejected" accordingly and rejects the call if the caller isn't the
+  // assigned underwriter or the application isn't Under Review.
+  decideApplication: async (applicationId, decision, comments) => {
+    const { data } = await axiosInstance.post(`/underwriter/applications/${applicationId}/decision`, {
+      decision,
+      comments,
+    });
+    return { data };
+  },
+
+  // The pool of unclaimed applications waiting for a processor — GET
+  // /processor/work-list is hardcoded server-side to status "Submitted".
+  getProcessorWorkList: async () => {
+    const { data } = await axiosInstance.get('/processor/work-list');
+    return { data };
+  },
+
+  // Applications this processor has already claimed. The backend forces
+  // processorId to the caller's own id for anyone with the PROCESSOR role,
+  // so this is automatically scoped to "my" applications regardless of
+  // what (if anything) we pass here.
+  getClaimedApplicationsForProcessor: async () => {
+    const { data } = await axiosInstance.get('/loan-applications');
+    return { data };
+  },
+
+  // POST /processor/claim/{id} is the only endpoint that can move an
+  // application off the Submitted pool — it sets status to "In Review" and
+  // assigns the caller as processor. There's no way to make it use our
+  // exact status vocabulary, so we immediately rename the status via the
+  // generic update endpoint (which the now-assigned processor has access
+  // to) to keep "Under Verification" as the source of truth everywhere else
+  // in the app.
+  claimApplication: async (applicationId) => {
+    await axiosInstance.post(`/processor/claim/${applicationId}`);
+    const { data } = await axiosInstance.put(`/loan-applications/${applicationId}`, {
+      status: 'Under Verification',
+    });
+    return { data };
+  },
+
+  // POST /processor/applications/{id}/verify is the backend's "mark
+  // reviewed" action — it always resolves to "Ready for Underwriter"
+  // internally regardless of outcome, so we rename it to "Verified"
+  // afterwards for the same reason as claimApplication above.
+  verifyApplication: async (applicationId) => {
+    await axiosInstance.post(`/processor/applications/${applicationId}/verify`);
+    const { data } = await axiosInstance.put(`/loan-applications/${applicationId}`, {
+      status: 'Verified',
+    });
+    return { data };
   },
 
   submitVerification: async (applicationId, verificationData) => {
     const { data } = await axiosInstance.put(`/loan-applications/${applicationId}`, verificationData);
-    return { data };
-  },
-
-  makeDecision: async (applicationId, decisionData) => {
-    const { data } = await axiosInstance.put(`/loan-applications/${applicationId}`, {
-      decision: decisionData.decision,
-      decisionComments: decisionData.comments,
-      status: decisionStatusMap[decisionData.decision] || decisionData.decision,
-    });
     return { data };
   },
 

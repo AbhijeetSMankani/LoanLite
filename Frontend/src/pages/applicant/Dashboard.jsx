@@ -30,8 +30,8 @@ const ApplicantDashboard = () => {
           total: applications.length,
           draft: applications.filter((a) => a.status === 'draft').length,
           submitted: applications.filter((a) => a.status === 'submitted').length,
-          approved: applications.filter((a) => a.status === 'approved').length,
-          rejected: applications.filter((a) => a.status === 'rejected').length,
+          approved: applications.filter((a) => a.status?.toLowerCase() === 'accepted').length,
+          rejected: applications.filter((a) => a.status?.toLowerCase() === 'rejected').length,
         });
       } catch (err) {
         console.error('Error fetching applications:', err);

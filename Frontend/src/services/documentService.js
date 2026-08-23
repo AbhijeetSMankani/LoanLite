@@ -36,6 +36,15 @@ const documentService = {
     });
     return { data };
   },
+
+  // Marks an application as waiting on the applicant for missing documents.
+  requestDocuments: async (applicationId, message) => {
+    const { data } = await axiosInstance.patch(
+      `/documents/applications/${applicationId}/request-documents`,
+      message ? { message } : undefined
+    );
+    return { data };
+  },
 };
 
 export default documentService;

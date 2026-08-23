@@ -20,13 +20,16 @@ const ProcessorDashboard = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const response = await loanService.getApplicationsForProcessor(1, 100);
+        const [workListRes, claimedRes] = await Promise.all([
+          loanService.getProcessorWorkList(),
+          loanService.getClaimedApplicationsForProcessor(),
+        ]);
 
-        const applications = response.data || [];
+        const claimed = claimedRes.data || [];
         setStats({
-          pending: applications.filter((a) => a.status === 'submitted').length,
-          inProgress: applications.filter((a) => a.status === 'in-review').length,
-          completed: applications.filter((a) => a.status === 'verified').length,
+          pending: (workListRes.data || []).length,
+          inProgress: claimed.filter((a) => a.status?.toLowerCase() === 'under verification').length,
+          completed: claimed.filter((a) => a.status?.toLowerCase() === 'verified').length,
         });
       } catch (err) {
         setError(err.message || 'Failed to load statistics');

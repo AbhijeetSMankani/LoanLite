@@ -7,7 +7,17 @@ import EmptyState from '../../components/EmptyState';
 import loanService from '../../services/loanService';
 import { FilePlus2, Inbox } from 'lucide-react';
 
-const FILTERS = ['all', 'draft', 'submitted', 'in-review', 'approved', 'rejected'];
+const FILTERS = [
+  'all',
+  'draft',
+  'submitted',
+  'under verification',
+  'waiting for documents',
+  'verified',
+  'under review',
+  'accepted',
+  'rejected',
+];
 
 const MyApplications = () => {
   const navigate = useNavigate();
@@ -35,7 +45,7 @@ const MyApplications = () => {
   }, [page]);
 
   const filteredApplications =
-    filter === 'all' ? applications : applications.filter((app) => app.status === filter);
+    filter === 'all' ? applications : applications.filter((app) => app.status?.toLowerCase() === filter);
 
   if (loading) return <Loader fullScreen />;
 

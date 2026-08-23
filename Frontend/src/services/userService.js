@@ -30,8 +30,8 @@ const userService = {
       data: {
         totalUsers: usersRes.data.length,
         totalApplications: apps.length,
-        approvedLoans: apps.filter((a) => a.status === 'approved').length,
-        rejectedLoans: apps.filter((a) => a.status === 'rejected').length,
+        approvedLoans: apps.filter((a) => a.status?.toLowerCase() === 'accepted').length,
+        rejectedLoans: apps.filter((a) => a.status?.toLowerCase() === 'rejected').length,
       },
     };
   },
