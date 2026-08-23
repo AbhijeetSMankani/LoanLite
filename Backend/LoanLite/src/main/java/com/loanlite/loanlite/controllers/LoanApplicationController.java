@@ -82,7 +82,10 @@ public class LoanApplicationController {
     // recommendationReason/decision/decisionComments/processor/underwriter/creditScore/
     // verifiedIncome are all forced back to their initial values regardless of what the caller
     // sends - those only get set later by staff-only actions (processor verify, underwriter
-    // decision), never by the applicant at creation time.
+    // decision), never by the applicant at creation time. createdAt/updatedAt are likewise
+    // force-nulled here so service.createApplication()'s null-check always defaults them to
+    // now(), and submittedAt is force-nulled directly (create() never sets it otherwise) -
+    // closes backendTodo.csv task 2, a caller could otherwise backdate all three.
     @PostMapping
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<LoanApplication> create(@RequestBody LoanApplication app) {
@@ -97,6 +100,9 @@ public class LoanApplicationController {
         app.setCreditScore(null);
         app.setVerifiedIncome(null);
         app.setInterestRate(LoanApplicationService.FIXED_ANNUAL_INTEREST_RATE);
+        app.setCreatedAt(null);
+        app.setUpdatedAt(null);
+        app.setSubmittedAt(null);
 
         if (app.getApplicationNumber() == null || app.getApplicationNumber().isBlank()) {
             app.setApplicationNumber("APP-" + System.currentTimeMillis());
