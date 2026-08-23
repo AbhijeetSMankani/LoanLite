@@ -74,11 +74,10 @@ public class AuthController {
     public ResponseEntity<Void> changePassword(Authentication authentication, @RequestBody ChangePasswordRequest req) {
         User user = userService.findByEmail(authentication.getName())
                 .orElseThrow(() -> new IllegalStateException("Authenticated user not found: " + authentication.getName()));
-        try {
-            userService.changePassword(user.getId(), req.getCurrentPassword(), req.getNewPassword());
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().build();
-        }
+        // Lets IllegalArgumentException (wrong current password / blank new password) propagate
+        // to GlobalExceptionHandler's existing handler instead of swallowing it into an
+        // empty-body 400 (backendTodo.csv task 3) - the message is client-facing either way.
+        userService.changePassword(user.getId(), req.getCurrentPassword(), req.getNewPassword());
         return ResponseEntity.ok().build();
     }
 }

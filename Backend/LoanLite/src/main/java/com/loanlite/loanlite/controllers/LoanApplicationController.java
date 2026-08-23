@@ -37,6 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.loanlite.loanlite.entities.Document;
 import com.loanlite.loanlite.entities.LoanApplication;
 import com.loanlite.loanlite.entities.User;
+import com.loanlite.loanlite.exception.ApiException;
 import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
 import com.loanlite.loanlite.services.ApplicationHistoryService;
 import com.loanlite.loanlite.services.DocumentService;
@@ -144,7 +145,7 @@ public class LoanApplicationController {
     public ResponseEntity<LoanApplication> getApplication(@PathVariable Long id) {
         LoanApplication app = service.getApplication(id);
         if (!accessGuard.hasAccess(app, accessGuard.currentUser())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("You do not have access to this application.");
         }
         return ResponseEntity.ok(app);
     }
@@ -156,11 +157,11 @@ public class LoanApplicationController {
     public ResponseEntity<LoanApplication> getByApplicationNumber(@PathVariable String applicationNumber) {
         Optional<LoanApplication> found = service.findByApplicationNumber(applicationNumber);
         if (found.isEmpty()) {
-            return ResponseEntity.notFound().build();
+            throw ApiException.notFound("Loan application not found with application number: " + applicationNumber);
         }
         LoanApplication app = found.get();
         if (!accessGuard.hasAccess(app, accessGuard.currentUser())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("You do not have access to this application.");
         }
         return ResponseEntity.ok(app);
     }
@@ -178,12 +179,12 @@ public class LoanApplicationController {
         User caller = accessGuard.currentUser();
 
         if (!accessGuard.hasAccess(existing, caller)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("You do not have access to this application.");
         }
 
         if (accessGuard.isOwningApplicant(existing, caller)) {
             if (!"Draft".equalsIgnoreCase(existing.getStatus())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                throw ApiException.forbidden("This application can no longer be edited once it has left Draft status.");
             }
             app.setStatus(null);
             // Staff-only fields: reject caller-supplied changes by copying back whatever
@@ -214,7 +215,7 @@ public class LoanApplicationController {
         LoanApplication existing = service.getApplication(id);
         User caller = accessGuard.currentUser();
         if (!accessGuard.isOwningApplicant(existing, caller)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("Only the owning applicant may submit this application.");
         }
         existing.setStatus("Submitted");
         if (existing.getSubmittedAt() == null) {
@@ -234,7 +235,7 @@ public class LoanApplicationController {
         LoanApplication existing = service.getApplication(id);
         User caller = accessGuard.currentUser();
         if (!accessGuard.isOwningApplicant(existing, caller)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("Only the owning applicant may withdraw this application.");
         }
         existing.setStatus("Withdrawn");
         existing.setUpdatedAt(LocalDateTime.now());
@@ -256,11 +257,11 @@ public class LoanApplicationController {
 
         LoanApplication application = service.getApplication(id);
         if (!accessGuard.hasAccess(application, accessGuard.currentUser())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("You do not have access to this application.");
         }
 
         if (file == null || file.isEmpty()) {
-            return ResponseEntity.badRequest().build();
+            throw ApiException.badRequest("A file is required.");
         }
         if (!ALLOWED_DOCUMENT_CONTENT_TYPES.contains(file.getContentType())) {
             throw new IllegalArgumentException(
@@ -294,7 +295,7 @@ public class LoanApplicationController {
     public ResponseEntity<Map<String, Object>> getApplicationDocuments(@PathVariable Long id) {
         LoanApplication application = service.getApplication(id);
         if (!accessGuard.hasAccess(application, accessGuard.currentUser())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("You do not have access to this application.");
         }
 
         List<Document> documents = documentService.findByApplicationId(id);

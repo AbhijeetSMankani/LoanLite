@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.loanlite.loanlite.entities.LoanApplication;
 import com.loanlite.loanlite.entities.User;
+import com.loanlite.loanlite.exception.ApiException;
 import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
 import com.loanlite.loanlite.services.ApplicationHistoryService;
 import com.loanlite.loanlite.services.LoanApplicationService;
@@ -84,7 +85,7 @@ public class UnderwriterController {
         LoanApplication existing = loanApplicationService.getApplication(applicationId);
         User caller = accessGuard.currentUser();
         if (!accessGuard.isAssignedUnderwriter(existing, caller)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("Only the assigned underwriter may record a decision on this application.");
         }
         if (existing.getStatus() == null || !existing.getStatus().equalsIgnoreCase("Under Review")) {
             throw new IllegalArgumentException(

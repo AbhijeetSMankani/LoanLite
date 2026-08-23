@@ -1,6 +1,7 @@
 package com.loanlite.loanlite.controllers;
 
 import com.loanlite.loanlite.entities.User;
+import com.loanlite.loanlite.exception.ApiException;
 import com.loanlite.loanlite.services.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -35,7 +36,7 @@ public class UserController {
         boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         String current = auth.getName();
         if (!isAdmin && !current.equals(u.getEmail())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("You may only view your own account.");
         }
         return ResponseEntity.ok(u);
     }
@@ -55,7 +56,7 @@ public class UserController {
         boolean isAdmin = auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
         String current = auth.getName();
         if (!isAdmin && !current.equals(existing.getEmail())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("You may only update your own account.");
         }
         if (current.equals(existing.getEmail()) && user.getRole() != null && !user.getRole().equals(existing.getRole())) {
             throw new IllegalArgumentException("You cannot change your own role");

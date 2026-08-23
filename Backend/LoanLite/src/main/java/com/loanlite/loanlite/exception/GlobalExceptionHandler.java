@@ -24,6 +24,13 @@ public class GlobalExceptionHandler {
     // handled explicitly here so they keep their correct status codes instead of falling
     // through to the generic RuntimeException handler below.
 
+    // Manual ownership/precondition checks in controllers throw this directly with an explicit
+    // status instead of returning an empty-body ResponseEntity (backendTodo.csv task 3).
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<Map<String, Object>> handleApiException(ApiException ex, WebRequest request) {
+        return build(ex.getStatus(), ex, request);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex, WebRequest request) {
         return build(HttpStatus.FORBIDDEN, ex, request);

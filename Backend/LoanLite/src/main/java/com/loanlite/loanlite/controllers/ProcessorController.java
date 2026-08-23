@@ -22,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.loanlite.loanlite.entities.Document;
 import com.loanlite.loanlite.entities.LoanApplication;
 import com.loanlite.loanlite.entities.User;
+import com.loanlite.loanlite.exception.ApiException;
 import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
 import com.loanlite.loanlite.services.ApplicationHistoryService;
 import com.loanlite.loanlite.services.DocumentService;
@@ -95,7 +96,7 @@ public class ProcessorController {
         LoanApplication existing = loanApplicationService.getApplication(applicationId);
         User caller = accessGuard.currentUser();
         if (!accessGuard.isAssignedProcessor(existing, caller)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("Only the assigned processor may verify this application.");
         }
 
         List<Document> documents = documentService.findByApplicationId(applicationId);

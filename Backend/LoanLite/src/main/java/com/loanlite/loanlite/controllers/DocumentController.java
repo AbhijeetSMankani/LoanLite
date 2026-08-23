@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.loanlite.loanlite.entities.Document;
 import com.loanlite.loanlite.entities.LoanApplication;
 import com.loanlite.loanlite.entities.User;
+import com.loanlite.loanlite.exception.ApiException;
 import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
 import com.loanlite.loanlite.services.ApplicationHistoryService;
 import com.loanlite.loanlite.services.DocumentService;
@@ -74,7 +75,7 @@ public class DocumentController {
     public ResponseEntity<Document> get(@PathVariable Long id) {
         Document doc = service.getDocument(id);
         if (!accessGuard.hasAccess(doc.getApplication(), accessGuard.currentUser())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("You do not have access to this document.");
         }
         return ResponseEntity.ok(doc);
     }
@@ -107,7 +108,7 @@ public class DocumentController {
                 || accessGuard.isAssignedProcessor(existing.getApplication(), caller)
                 || accessGuard.isAssignedUnderwriter(existing.getApplication(), caller);
         if (!allowed) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("You must be the assigned processor, underwriter, or admin to update this document.");
         }
         return ResponseEntity.ok(service.updateDocument(id, doc));
     }
@@ -126,7 +127,7 @@ public class DocumentController {
                 || (accessGuard.isOwningApplicant(doc.getApplication(), caller)
                     && "PENDING".equalsIgnoreCase(doc.getVerificationStatus()));
         if (!allowed) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("You may only delete your own document while it is still PENDING.");
         }
 
         service.deleteDocument(id);
@@ -147,7 +148,7 @@ public class DocumentController {
         Document existing = service.getDocument(documentId);
         User caller = accessGuard.currentUser();
         if (!accessGuard.isAssignedProcessor(existing.getApplication(), caller)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("Only the assigned processor may update this document's status.");
         }
 
         String verificationStatus = payload.get("verificationStatus");
@@ -186,7 +187,7 @@ public class DocumentController {
         LoanApplication existing = loanApplicationService.getApplication(applicationId);
         User caller = accessGuard.currentUser();
         if (!accessGuard.isAssignedProcessor(existing, caller)) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("Only the assigned processor may request documents on this application.");
         }
 
         String message = payload != null ? payload.get("message") : null;

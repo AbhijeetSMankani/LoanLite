@@ -2,6 +2,7 @@ package com.loanlite.loanlite.controllers;
 
 import com.loanlite.loanlite.entities.ApplicationHistory;
 import com.loanlite.loanlite.entities.User;
+import com.loanlite.loanlite.exception.ApiException;
 import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
 import com.loanlite.loanlite.services.ApplicationHistoryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +41,7 @@ public class ApplicationHistoryController {
     public ResponseEntity<ApplicationHistory> get(@PathVariable Long id) {
         ApplicationHistory entry = service.getHistory(id);
         if (!accessGuard.hasAccess(entry.getApplication(), accessGuard.currentUser())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            throw ApiException.forbidden("You do not have access to this history entry.");
         }
         return ResponseEntity.ok(entry);
     }
