@@ -292,9 +292,10 @@ task 1, now done) - the backend writes history entries automatically as a side e
 attributed to the caller: `LoanApplicationController.submitApplication()`/`withdrawApplication()`
 (`action: "SUBMITTED"`/`"WITHDRAWN"`), `ProcessorController.claimApplication()`/`verifyApplication()`
 (`"PROCESSOR_CLAIMED"`/`"PROCESSOR_VERIFIED"`, the latter's `details` carrying the recommendation +
-reason), `UnderwriterController.claimApplication()`/`decideApplication()` (`"UNDERWRITER_CLAIMED"`,
-and `"UNDERWRITER_ACCEPTED"`/`"UNDERWRITER_REJECTED"` from the decision endpoint, §3.7 - previously
-missing from this list), `DocumentController.updateDocumentStatus()`
+reason), `UnderwriterController.claimApplication()`/`decideApplication()`/`returnToProcessor()`
+(`"UNDERWRITER_CLAIMED"`, `"UNDERWRITER_ACCEPTED"`/`"UNDERWRITER_REJECTED"` from the decision endpoint,
+and `"UNDERWRITER_RETURNED"` from the return-to-processor endpoint, §3.7 - the latter added by
+`backendTodo.csv` task 4), `DocumentController.updateDocumentStatus()`
 (`"DOCUMENT_VERIFIED"`/`"DOCUMENT_REJECTED"`, only logged when the resulting `verificationStatus` is
 exactly `VERIFIED` or `REJECTED`), and `DocumentController.requestDocuments()` (`"DOCUMENTS_REQUESTED"`,
 §3.4 - also previously missing from this list). `action` strings above are this implementation's
@@ -330,6 +331,7 @@ choice, not a fixed enum enforced anywhere - don't assume the set is closed.
 | `GET /api/underwriter/work-list` | `ROLE_UNDERWRITER` only | none, optional `page`/`size`/`sort` (§1 Pagination) | `200` `Page<LoanApplication>` (§1) where `status == "Verified"` exactly, paginated, default size 20. |
 | `POST /api/underwriter/claim/{applicationId}` | `ROLE_UNDERWRITER` only. Any underwriter may claim any `Verified` application, first-come-first-served (`featuresTodo.csv` task 6, "Done") | none | `200` `LoanApplication` with `underwriter` set to caller, `status = "Under Review"`. `409` (returns the current application body) if status isn't exactly `"Verified"` at the moment of the write - same atomic-conditional-update reasoning as the processor claim endpoint above. |
 | `POST /api/underwriter/applications/{applicationId}/decision` | `ROLE_UNDERWRITER` only, **plus** an assigned-underwriter ownership check - checked **before** the status precondition below, so a non-assigned caller always gets `403` regardless of the application's current status (e.g. an underwriter who hasn't claimed it yet gets `403`, not `400`, even though the status also isn't `Under Review`) | `{ decision: "ACCEPTED" \| "REJECTED", comments?: string }` | `200` `LoanApplication` with `status = "Accepted"` or `"Rejected"`, `decision` set to the same value, `decisionComments` set from `comments` if given. `400` if the application's current `status` isn't exactly `"Under Review"` (e.g. not yet claimed, or a decision was already made - this is not re-callable once decided), or if `decision` is anything other than `ACCEPTED`/`REJECTED`. This is the actual approve/reject action for the whole product - it didn't exist before `featuresTodo.csv` task 5. Also logs a `"UNDERWRITER_ACCEPTED"`/`"UNDERWRITER_REJECTED"` history entry (§3.5) - previously undocumented. |
+| `POST /api/underwriter/applications/{applicationId}/return-to-processor` | `ROLE_UNDERWRITER` only, **plus** an assigned-underwriter ownership check, same order as `decision` above (`403` before the status precondition) (`backendTodo.csv` task 4, "Done") | `{ comments?: string }` (optional body) | `200` `LoanApplication` with `status` set back to `"Under Verification"` (reused, not a new dedicated status) - the processor assignment is left untouched, the same processor who verified it gets it back. `comments` if given is stored in `decisionComments` (same field `requestDocuments()` uses for its message). `400` if the application's current `status` isn't exactly `"Under Review"`. For an underwriter who finds a fixable problem (a document that looks off, income that doesn't reconcile) rather than a reason to reject the applicant outright - previously the only two outcomes were accept/reject. Logs an `"UNDERWRITER_RETURNED"` history entry (§3.5). |
 
 The exact request body shape above (`decision`/`comments` keys, the `ACCEPTED`/`REJECTED` values) is this
 implementation's choice - the original task description left it as "e.g." - not something confirmed
@@ -383,7 +385,8 @@ If you're porting an existing frontend rather than building fresh, these are alr
 - Auth: login/register/me/change-password (§3.1).
 - Applicant flow: create → edit while Draft → upload documents → submit → view own application(s)/status.
 - Processor flow: work-list → claim → verify.
-- Underwriter flow: work-list → claim → decision (accept/reject, §3.7).
+- Underwriter flow: work-list → claim → decision (accept/reject, §3.7) or return-to-processor (§3.7) if
+  something needs another look before a final decision.
 - Admin: user CRUD, application delete.
 - **Reminder**: every flow above that lists something (own applications, work-lists) now reads a
   paginated `Page<T>` response (§1), not a bare array - read `response.content`, not `response` itself.

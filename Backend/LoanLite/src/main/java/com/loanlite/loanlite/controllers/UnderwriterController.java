@@ -109,4 +109,44 @@ public class UnderwriterController {
                 "Decision: " + decision + (existing.getDecisionComments() != null ? " - " + existing.getDecisionComments() : ""));
         return ResponseEntity.ok(updated);
     }
+
+    // POST /api/underwriter/applications/{applicationId}/return-to-processor
+    // Sends an application back to the processor when the underwriter finds something that needs
+    // another look (a document that looks off, income that doesn't reconcile) rather than an
+    // outright accept/reject (backendTodo.csv task 4). Same ownership+status-precondition pattern
+    // as decideApplication() above: assigned-underwriter-only, checked before the Under Review
+    // precondition, application must currently be Under Review. Status goes back to
+    // "Under Verification" (reused, not a new status) and the processor assignment is left
+    // untouched - the same processor who verified it gets it back, since the shared processor
+    // work-list only shows "Submitted" applications and wouldn't surface this one to anyone else
+    // anyway. The optional comment is stored in decisionComments, the same field
+    // requestDocuments() uses for its optional message to the processor.
+    @PostMapping("/applications/{applicationId}/return-to-processor")
+    @PreAuthorize("hasRole('UNDERWRITER')")
+    public ResponseEntity<LoanApplication> returnToProcessor(
+            @PathVariable Long applicationId,
+            @RequestBody(required = false) Map<String, String> payload) {
+        LoanApplication existing = loanApplicationService.getApplication(applicationId);
+        User caller = accessGuard.currentUser();
+        if (!accessGuard.isAssignedUnderwriter(existing, caller)) {
+            throw ApiException.forbidden("Only the assigned underwriter may return this application to the processor.");
+        }
+        if (existing.getStatus() == null || !existing.getStatus().equalsIgnoreCase("Under Review")) {
+            throw new IllegalArgumentException(
+                    "Cannot return to processor: application must be Under Review (current status: "
+                            + existing.getStatus() + ")");
+        }
+
+        String comments = payload != null ? payload.get("comments") : null;
+        existing.setStatus("Under Verification");
+        if (comments != null) {
+            existing.setDecisionComments(comments);
+        }
+        existing.setUpdatedAt(LocalDateTime.now());
+
+        LoanApplication updated = loanApplicationService.updateApplication(applicationId, existing);
+        historyService.log(updated, caller, "UNDERWRITER_RETURNED",
+                comments != null ? comments : "Underwriter returned the application to the processor for another look.");
+        return ResponseEntity.ok(updated);
+    }
 }
