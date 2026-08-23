@@ -1050,7 +1050,14 @@ r = call("POST", "/documents", token=admin_token,
 admin_created_doc_id = r.json().get("id") if r.ok else None
 
 # ---------------------------------------------------------------------------
-# Task 9c: DocumentController.update PROCESSOR/UNDERWRITER/ADMIN only - Not Started
+# Task 9c: DocumentController.update PROCESSOR/UNDERWRITER/ADMIN only - Done.
+# Updated for backendTodo.csv task 1 ("Done"): this endpoint is no longer
+# role-only - it now also requires the caller be the assigned processor/
+# underwriter on the document's application (admin still has no such
+# restriction). None of processor/processor2/underwriter below are assigned
+# to task9c_app (nobody claims it in this section), so all three now get
+# 403 where they used to get 200 - see backendTodoTest/task01_document_put_ownership.py
+# for the full positive (assigned-caller-succeeds) coverage.
 # ---------------------------------------------------------------------------
 section("Task 9c: DocumentController.update lockdown")
 
@@ -1077,21 +1084,18 @@ else:
     call("PUT", "/documents/999999999", token=admin_token, json={"remarks": "x"},
          expect=404, label="update a nonexistent document (should be not found)")
 
-    r = call("PUT", f"/documents/{task9c_doc_id}", token=processor_token,
-              json={"remarks": "processor remarks"}, expect=200,
-              label="processor updates task-9c document (not ownership-based, allowed)")
-    record(r.ok and r.json().get("remarks") == "processor remarks", "processor's update actually persisted")
-    r = call("PUT", f"/documents/{task9c_doc_id}", token=processor2_token,
-              json={"remarks": "processor2 remarks"}, expect=200,
-              label="unassigned processor2 updates task-9c document (still allowed - role-only, not ownership-based)")
-    record(r.ok and r.json().get("remarks") == "processor2 remarks", "processor2's update actually persisted")
-    r = call("PUT", f"/documents/{task9c_doc_id}", token=underwriter_token,
-              json={"remarks": "underwriter remarks"}, expect=200,
-              label="underwriter updates task-9c document")
-    record(r.ok and r.json().get("remarks") == "underwriter remarks", "underwriter's update actually persisted")
+    call("PUT", f"/documents/{task9c_doc_id}", token=processor_token,
+         json={"remarks": "processor remarks"}, expect=403,
+         label="unassigned processor updates task-9c document (backendTodo task 1: ownership-checked now)")
+    call("PUT", f"/documents/{task9c_doc_id}", token=processor2_token,
+         json={"remarks": "processor2 remarks"}, expect=403,
+         label="unassigned processor2 updates task-9c document (backendTodo task 1: ownership-checked now)")
+    call("PUT", f"/documents/{task9c_doc_id}", token=underwriter_token,
+         json={"remarks": "underwriter remarks"}, expect=403,
+         label="unassigned underwriter updates task-9c document (backendTodo task 1: ownership-checked now)")
     r = call("PUT", f"/documents/{task9c_doc_id}", token=admin_token,
               json={"remarks": "admin remarks"}, expect=200,
-              label="admin updates task-9c document")
+              label="admin updates task-9c document (admin has no ownership restriction)")
     record(r.ok and r.json().get("remarks") == "admin remarks", "admin's update actually persisted")
 
     guarded(

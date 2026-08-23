@@ -251,9 +251,9 @@ tasks 9/9b/9c/9d (locking down `get`/`create`/`update`/`delete` respectively) ar
 in that CSV, and the code confirms it - none of the four are an open gap anymore:
 - `get` (`GET /api/documents/{id}`) - ownership-checked via `accessGuard.hasAccess()`.
 - `create` (`POST /api/documents`) - `ROLE_ADMIN` only.
-- `update` (`PUT /api/documents/{id}`) - role-gated to `PROCESSOR`/`UNDERWRITER`/`ADMIN` (**not**
-  ownership-based per that task's own description - any processor/underwriter/admin can still edit
-  *any* document, not just one they're assigned to; this is the one real remaining gap in this group).
+- `update` (`PUT /api/documents/{id}`) - role-gated to `PROCESSOR`/`UNDERWRITER`/`ADMIN`, **plus**
+  (`todo/backendTodo.csv` task 1, "Done") an assigned-processor/assigned-underwriter ownership check -
+  admin has no such restriction.
 - `delete` (`DELETE /api/documents/{id}`) - admin, or the owning applicant but only while
   `verificationStatus == "PENDING"`.
 
@@ -267,7 +267,7 @@ admin), added as part of `featuresTodo.csv` task 11's pagination rewrite. `updat
 | `POST /api/documents` | `ROLE_ADMIN` only | Full `Document` JSON, persisted verbatim including `verificationStatus` - this is metadata-only, no file upload (use §3.3's multipart endpoint for real uploads) | `201` created `Document`. |
 | `GET /api/documents/{id}` | Ownership-checked via `accessGuard.hasAccess()` on the document's application: owning applicant, assigned processor/underwriter, or admin only | none | `200` `Document`. `403` (empty body) if caller lacks access. `404` (JSON) if not found. |
 | `GET /api/documents` | No `@PreAuthorize`, but **scoped server-side to what the caller can see** (own applications for an applicant, assigned/claimed for staff, everything for admin) via a single query (`featuresTodo.csv` task 11, "Done") - previously fetched every row via `findAll()` then filtered with a Java stream, which didn't compose with pagination | none, optional `page`/`size`/`sort` (§1 Pagination) | `200` `Page<Document>` (§1), paginated, default size 20. |
-| `PUT /api/documents/{id}` | `PROCESSOR`/`UNDERWRITER`/`ADMIN` only (`@PreAuthorize`) - **not ownership-based**, so any processor/underwriter/admin can edit *any* document, not just one they're assigned to (this is the one real remaining gap in this controller). Also applies `verificationStatus`/`remarks`/`filePath`/`application` verbatim with zero field stripping. An applicant can never reach this endpoint at all (blocked by the role gate before the method body runs) - they upload via `POST /api/applications/{id}/documents` instead. | Partial `Document` JSON, null-safe merge | `200` updated `Document`. `403` (empty body) for `ROLE_USER` callers. |
+| `PUT /api/documents/{id}` | `PROCESSOR`/`UNDERWRITER`/`ADMIN` only (`@PreAuthorize`), **plus** (`backendTodo.csv` task 1, "Done") an assigned-processor/assigned-underwriter ownership check on the document's application - `403` for staff not assigned to it; admin has no such restriction. Also applies `verificationStatus`/`remarks`/`filePath`/`application` verbatim with zero field stripping. An applicant can never reach this endpoint at all (blocked by the role gate before the method body runs) - they upload via `POST /api/applications/{id}/documents` instead. | Partial `Document` JSON, null-safe merge | `200` updated `Document`. `403` (empty body) for `ROLE_USER` callers, or for a processor/underwriter not assigned to the document's application. |
 | `DELETE /api/documents/{id}` | Admin, or the owning applicant but only while `verificationStatus == "PENDING"` - stops an applicant from erasing a `REJECTED` document and re-triggering verification as if it never existed | none | `204` no content. `403` (empty body) otherwise. |
 | `PATCH /api/documents/{documentId}` | `ROLE_PROCESSOR` only, **plus** an assigned-processor ownership check (`403` for a processor not assigned to that document's application, `featuresTodo.csv` task 8, "Done") - closes what used to be a real gap: any processor could previously flip any document's status on any application system-wide | `{ verificationStatus?: string, status?: string, remarks?: string }` - accepts either `verificationStatus` or `status` as the key (checks `verificationStatus` first, falls back to `status`); value is uppercased | `200` updated `Document`. `403` (empty body) if the caller isn't the assigned processor. `404` (JSON) if the document doesn't exist. |
 | `PATCH /api/documents/applications/{applicationId}/request-documents` | `ROLE_PROCESSOR` only, **plus** assigned-processor ownership check (`403` for an unassigned processor) - added alongside task 5, closing the same gap `verify()` had | `{ message?: string }` (optional body) | `200` `LoanApplication` - pure notification action now, does **not** change `status` at all (the `"Waiting for Documents"` status it used to set is gone entirely); if `message` given, it's stored in `decisionComments` and also logged as a `DOCUMENTS_REQUESTED` history entry. **Note the URL**: despite being about an application, this lives under `/api/documents/...` (controller's base path), not `/api/applications/...` - a known oddity flagged in-code as "should move to ProcessorController". |
@@ -351,8 +351,8 @@ per-endpoint detail.
 | Role | Can do |
 |---|---|
 | `ROLE_USER` (applicant) | Register/login/own profile. Create/view/edit-while-Draft/submit/withdraw **their own** applications only. Upload documents only to applications they have access to (ownership-checked, §3.3 - not an open gap). View/delete only their own documents, and only while `verificationStatus == "PENDING"` for delete (§3.4 - not an open gap). Cannot reach `PUT /api/documents/{id}` at all (role-gated to staff/admin). Read (not write) their own applications' history entries - writes are `ROLE_ADMIN` only (§3.5). |
-| `ROLE_PROCESSOR` | Everything a normal authenticated user can reach, **plus** work-list/claim/verify/request-documents/update-document-status under `/api/processor` and `/api/documents`. Sees only applications where they're the assigned processor via `GET /api/applications` (list is scoped), and `GET /api/documents`/`GET /api/documents/{id}` are likewise ownership-scoped (§3.4 - no longer an open gap). The one real remaining gap: `PUT /api/documents/{id}` is role-gated to PROCESSOR/UNDERWRITER/ADMIN but **not** ownership-checked, so a processor can overwrite *any* document's fields, not just one on an application they're assigned to. |
-| `ROLE_UNDERWRITER` | Same pattern as processor, for `/api/underwriter` work-list/claim, **plus** the dedicated decision endpoint (§3.7) to accept/reject a claimed application. Same `PUT /api/documents/{id}` gap as processor above. |
+| `ROLE_PROCESSOR` | Everything a normal authenticated user can reach, **plus** work-list/claim/verify/request-documents/update-document-status under `/api/processor` and `/api/documents`. Sees only applications where they're the assigned processor via `GET /api/applications` (list is scoped), and `GET /api/documents`/`GET /api/documents/{id}`/`PUT /api/documents/{id}` are all ownership-scoped (§3.4 - no longer an open gap, `backendTodo.csv` task 1). |
+| `ROLE_UNDERWRITER` | Same pattern as processor, for `/api/underwriter` work-list/claim, **plus** the dedicated decision endpoint (§3.7) to accept/reject a claimed application. Same ownership scoping on `PUT /api/documents/{id}` as processor above. |
 | `ROLE_ADMIN` | Full access everywhere: only role that can create/list/delete users, delete applications, create documents directly (`POST /api/documents`), create/update/delete history entries directly, and assign roles via the dedicated `PATCH /api/admin/users/{id}/role` (§3.8). **Not** exclusive on documents: `PUT /api/documents/{id}` also permits PROCESSOR/UNDERWRITER, and `DELETE /api/documents/{id}` also permits the owning applicant for their own `PENDING` document (§3.4). Cannot create a loan application via `POST /api/applications` (role check is literally `hasRole('USER')`, not "not staff"), and cannot change their own role even via the dedicated role-assignment endpoint. |
 
 ---
@@ -386,13 +386,7 @@ If you're porting an existing frontend rather than building fresh, these are alr
 
 - Refresh tokens (`missingEndpoint.csv`): not implemented by design - single long-lived (1h) access token.
 - Forgot/reset password, email verification (`missingEndpoint.csv`): "Will Implement Later", no backend support at all.
-- One narrow document gap remains (§3.4): `PUT /api/documents/{id}` is role-gated to
-  PROCESSOR/UNDERWRITER/ADMIN but **not** ownership-checked, so any of those roles can edit *any*
-  document, not just one on an application they're assigned to (`preAuthorizeTodo.csv` task 9c's own
-  description explicitly calls this "not ownership-based" - a deliberate scope choice, not an oversight,
-  but still worth knowing). Every other document endpoint (`get`/`create`/`delete`/`list`, the
-  per-document status endpoint, `requestDocuments`) is already ownership- or role-checked as
-  documented in §3.4 - this section previously described several of them as open gaps, which was
-  stale. Application-history ownership (§3.5) is already locked down, and history now writes itself
-  automatically.
 - Document download/view and a correctly-named upload route (§5).
+- See `todo/backendTodo.csv` for the active backlog (timestamp forcing on create, standardized error
+  shape, underwriter return-to-processor action, external credit/income check services, admin
+  analytics endpoint, field-level validation).

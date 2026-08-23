@@ -93,13 +93,22 @@ public class DocumentController {
 
     // PUT /api/documents/{id}
     // Replaces a document's fields, for example its verification status or remarks. PROCESSOR,
-    // UNDERWRITER, and ADMIN only - not ownership-based, no applicant access at all. Applies
-    // verificationStatus/remarks/filePath/application verbatim with zero field stripping, so an
-    // applicant reaching this could self-certify their own document; they upload via
-    // POST /applications/{id}/documents instead, never through this endpoint.
+    // UNDERWRITER, and ADMIN only - no applicant access at all (they upload via
+    // POST /applications/{id}/documents instead, never through this endpoint). Ownership-checked:
+    // a processor/underwriter must be assigned to the document's application, same pattern as
+    // updateDocumentStatus()/requestDocuments() below; admin has no such restriction. Applies
+    // verificationStatus/remarks/filePath/application verbatim with zero field stripping.
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('PROCESSOR','UNDERWRITER','ADMIN')")
     public ResponseEntity<Document> update(@PathVariable Long id, @RequestBody Document doc) {
+        Document existing = service.getDocument(id);
+        User caller = accessGuard.currentUser();
+        boolean allowed = accessGuard.isAdmin(caller)
+                || accessGuard.isAssignedProcessor(existing.getApplication(), caller)
+                || accessGuard.isAssignedUnderwriter(existing.getApplication(), caller);
+        if (!allowed) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(service.updateDocument(id, doc));
     }
 
