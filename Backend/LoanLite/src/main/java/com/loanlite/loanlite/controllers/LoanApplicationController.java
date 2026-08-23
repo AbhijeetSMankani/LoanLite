@@ -1,6 +1,7 @@
 package com.loanlite.loanlite.controllers;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -34,6 +35,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import jakarta.validation.Valid;
+
 import com.loanlite.loanlite.entities.Document;
 import com.loanlite.loanlite.entities.LoanApplication;
 import com.loanlite.loanlite.entities.User;
@@ -42,6 +45,7 @@ import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
 import com.loanlite.loanlite.services.ApplicationHistoryService;
 import com.loanlite.loanlite.services.DocumentService;
 import com.loanlite.loanlite.services.LoanApplicationService;
+import com.loanlite.loanlite.validation.TenureValidator;
 
 @RestController
 @RequestMapping({"/api/loan-applications", "/api/applications"})
@@ -86,10 +90,13 @@ public class LoanApplicationController {
     // decision), never by the applicant at creation time. createdAt/updatedAt are likewise
     // force-nulled here so service.createApplication()'s null-check always defaults them to
     // now(), and submittedAt is force-nulled directly (create() never sets it otherwise) -
-    // closes backendTodo.csv task 2, a caller could otherwise backdate all three.
+    // closes backendTodo.csv task 2, a caller could otherwise backdate all three. @Valid enforces
+    // loanAmount/tenureMonths/declaredIncome's constraints (backendTodo.csv task 7) - safe to
+    // apply the full LoanApplication's constraints here since create() always expects a
+    // full/first-time submission, unlike update()'s intentional partial-merge semantics below.
     @PostMapping
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<LoanApplication> create(@RequestBody LoanApplication app) {
+    public ResponseEntity<LoanApplication> create(@Valid @RequestBody LoanApplication app) {
         app.setApplicant(accessGuard.currentUser());
         app.setStatus("Draft");
         app.setRecommendation(null);
@@ -180,6 +187,26 @@ public class LoanApplicationController {
 
         if (!accessGuard.hasAccess(existing, caller)) {
             throw ApiException.forbidden("You do not have access to this application.");
+        }
+
+        // update() is a partial merge (only non-null fields overwrite, see
+        // LoanApplicationService.updateApplication()) so @Valid can't be applied directly here -
+        // a legitimate partial update omitting loanAmount/tenureMonths/declaredIncome would
+        // incorrectly fail @NotNull. Instead, validate only the fields actually present in this
+        // request against the same rules create() enforces (backendTodo.csv task 7).
+        if (app.getLoanAmount() != null) {
+            BigDecimal min = new BigDecimal(LoanApplication.MIN_LOAN_AMOUNT);
+            BigDecimal max = new BigDecimal(LoanApplication.MAX_LOAN_AMOUNT);
+            if (app.getLoanAmount().compareTo(min) < 0 || app.getLoanAmount().compareTo(max) > 0) {
+                throw ApiException.badRequest("loanAmount must be between " + LoanApplication.MIN_LOAN_AMOUNT
+                        + " and " + LoanApplication.MAX_LOAN_AMOUNT);
+            }
+        }
+        if (app.getTenureMonths() != null && !TenureValidator.ALLOWED_TENURES.contains(app.getTenureMonths())) {
+            throw ApiException.badRequest("tenureMonths must be one of 12, 24, 36, 48, 60");
+        }
+        if (app.getDeclaredIncome() != null && app.getDeclaredIncome().compareTo(BigDecimal.ZERO) <= 0) {
+            throw ApiException.badRequest("declaredIncome must be greater than 0");
         }
 
         if (accessGuard.isOwningApplicant(existing, caller)) {

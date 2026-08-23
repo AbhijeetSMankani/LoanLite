@@ -1,7 +1,11 @@
 package com.loanlite.loanlite.entities;
 
 import com.loanlite.loanlite.entities.Document;
+import com.loanlite.loanlite.validation.ValidTenure;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotNull;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import java.math.BigDecimal;
@@ -13,6 +17,12 @@ import com.fasterxml.jackson.annotation.JsonManagedReference;
 @Entity
 @Table(name = "loan_applications")
 public class LoanApplication {
+
+    // Shared with LoanApplicationController.update()'s manual partial-field checks, so the range
+    // has one source of truth instead of the annotation's literal drifting from a duplicated
+    // hardcoded check (backendTodo.csv task 7).
+    public static final String MIN_LOAN_AMOUNT = "50000";
+    public static final String MAX_LOAN_AMOUNT = "2500000";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,13 +36,25 @@ public class LoanApplication {
     @OnDelete(action = OnDeleteAction.CASCADE)
     private User applicant;
 
+    // Range per the project charter's stated loan product rules (Rs.50,000-Rs.25,00,000).
+    // Enforced only where @Valid is explicitly wired (LoanApplicationController.create()) - see
+    // application.properties' jakarta.persistence.validation.mode=none for why this isn't also
+    // enforced automatically on every JPA flush (backendTodo.csv task 7).
     @Column(name = "loan_amount")
+    @NotNull(message = "loanAmount is required")
+    @DecimalMin(value = MIN_LOAN_AMOUNT, message = "loanAmount must be at least " + MIN_LOAN_AMOUNT)
+    @DecimalMax(value = MAX_LOAN_AMOUNT, message = "loanAmount must be at most " + MAX_LOAN_AMOUNT)
     private BigDecimal loanAmount;
 
+    // Discrete set per the project charter, not a range - see ValidTenure.
     @Column(name = "tenure_months")
+    @NotNull(message = "tenureMonths is required")
+    @ValidTenure
     private Integer tenureMonths;
 
     @Column(name = "declared_income")
+    @NotNull(message = "declaredIncome is required")
+    @DecimalMin(value = "0", inclusive = false, message = "declaredIncome must be greater than 0")
     private BigDecimal declaredIncome;
 
     @Column(name = "verified_income")

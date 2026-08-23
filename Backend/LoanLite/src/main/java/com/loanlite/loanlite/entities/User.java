@@ -1,6 +1,8 @@
 package com.loanlite.loanlite.entities;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import java.time.LocalDateTime;
 
 @Entity
@@ -11,16 +13,23 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Enforced only where @Valid is explicitly wired (UserController.create(),
+    // AuthController.register() via RegisterRequest) - not on update(), which is a partial merge
+    // (backendTodo.csv task 7).
     @Column(nullable = false, unique = true)
+    @NotBlank(message = "email is required")
+    @Email(message = "email must be a valid email address")
     private String email;
 
     @Column(name = "password_hash")
     private String passwordHash;
 
     @Column(name = "first_name")
+    @NotBlank(message = "firstName is required")
     private String firstName;
 
     @Column(name = "last_name")
+    @NotBlank(message = "lastName is required")
     private String lastName;
 
     private String phone;

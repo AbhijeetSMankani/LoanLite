@@ -430,8 +430,12 @@ for label, token in (
     ("underwriter", underwriter_token),
     ("admin", admin_token),
 ):
+    # A fully valid body (backendTodo.csv task 7's @Valid runs during Spring MVC argument
+    # resolution, which happens BEFORE @PreAuthorize's AOP interceptor - an invalid body would
+    # get 400 before the role check is ever reached) so this isolates the role check itself.
     call("POST", "/applications", token=token,
-         json={"applicant": {"id": applicant_id}, "loanAmount": 100000, "tenureMonths": 12},
+         json={"applicant": {"id": applicant_id}, "loanAmount": 100000, "tenureMonths": 12,
+               "declaredIncome": 40000},
          expect=403, label=f"{label} creates an application (should be forbidden, USER only)")
 
 r = call("POST", "/applications", token=applicant_token,
@@ -745,7 +749,7 @@ section("Task 7: delete application lockdown")
 
 r = call("POST", "/applications", token=applicant_token,
           json={"applicant": {"id": applicant_id}, "loanAmount": 90000,
-                "tenureMonths": 6, "declaredIncome": 30000},
+                "tenureMonths": 12, "declaredIncome": 30000},
           expect=201, label="applicant creates task-7 application")
 task7_app = r.json() if r.ok else None
 

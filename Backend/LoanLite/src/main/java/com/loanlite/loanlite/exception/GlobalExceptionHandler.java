@@ -3,6 +3,7 @@ package com.loanlite.loanlite.exception;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
@@ -29,6 +31,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<Map<String, Object>> handleApiException(ApiException ex, WebRequest request) {
         return build(ex.getStatus(), ex, request);
+    }
+
+    // @Valid binding failures (backendTodo.csv task 7) - field-level messages joined into one
+    // client-facing string, e.g. "loanAmount: must be at least 50000; tenureMonths: tenureMonths
+    // must be one of 12, 24, 36, 48, 60". Was previously unhandled here, falling through to the
+    // generic 500 case below with a framework-internal message instead of a clean 400.
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex, WebRequest request) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+                .collect(Collectors.joining("; "));
+        return build(HttpStatus.BAD_REQUEST, message, request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)

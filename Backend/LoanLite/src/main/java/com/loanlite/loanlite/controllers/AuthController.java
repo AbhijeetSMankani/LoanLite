@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+
 import com.loanlite.loanlite.controllers.auth.AuthRequest;
 import com.loanlite.loanlite.controllers.auth.AuthResponse;
 import com.loanlite.loanlite.controllers.auth.ChangePasswordRequest;
@@ -44,7 +46,7 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<UserResponse> register(@RequestBody RegisterRequest req) {
+    public ResponseEntity<UserResponse> register(@Valid @RequestBody RegisterRequest req) {
         User u = new User();
         u.setEmail(req.getEmail());
         u.setPasswordHash(req.getPassword());

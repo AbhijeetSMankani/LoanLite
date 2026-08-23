@@ -14,6 +14,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -21,9 +23,13 @@ public class UserController {
     private UserService service;
 
 
+    // @Valid enforces User's email/firstName/lastName constraints (backendTodo.csv task 7) -
+    // safe here since create() always expects a full new user, unlike update()'s partial-merge
+    // semantics below, which is deliberately left unvalidated for the same reason as
+    // LoanApplicationController.update().
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<User> create(@RequestBody User user) {
+    public ResponseEntity<User> create(@Valid @RequestBody User user) {
         User created = service.createUser(user);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
