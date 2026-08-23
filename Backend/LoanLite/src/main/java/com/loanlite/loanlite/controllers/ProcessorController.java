@@ -1,5 +1,6 @@
 package com.loanlite.loanlite.controllers;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import com.loanlite.loanlite.security.LoanApplicationAccessGuard;
 import com.loanlite.loanlite.services.ApplicationHistoryService;
 import com.loanlite.loanlite.services.DocumentService;
 import com.loanlite.loanlite.services.LoanApplicationService;
+import com.loanlite.loanlite.services.OutsideCheckService;
 
 @RestController
 @RequestMapping("/api/processor")
@@ -43,6 +45,9 @@ public class ProcessorController {
 
     @Autowired
     private ApplicationHistoryService historyService;
+
+    @Autowired
+    private OutsideCheckService outsideCheckService;
 
     // Required applicant documents before a processor can complete verification.
     private static final List<String> REQUIRED_DOCUMENT_TYPES = List.of(
@@ -65,6 +70,15 @@ public class ProcessorController {
     // read-check-then-save: two processors racing to claim the same application can no longer
     // both pass the status check before either write commits, since the WHERE clause re-checks
     // status as part of the same database write. The loser gets 409, not a silent 200.
+    //
+    // Also runs the two "outside checks" (backendTodo.csv task 5) - credit score and verified
+    // income, each a call to an external random-integer service standing in for the charter's
+    // real outside-check services - and populates creditScore/verifiedIncome from the result
+    // instead of relying purely on manual staff entry. Each call falls back independently: if one
+    // (or both) fails/times out, that field is simply left untouched (null, same as before this
+    // task) rather than blocking the claim - a processor can still enter it by hand via
+    // PUT /api/applications/{id} same as always. Not re-run on a returned application (task 4's
+    // return-to-processor skips claim() entirely, the original outside-check result stands).
     @PostMapping("/claim/{applicationId}")
     @PreAuthorize("hasRole('PROCESSOR')")
     public ResponseEntity<LoanApplication> claimApplication(@PathVariable Long applicationId) {
@@ -77,7 +91,26 @@ public class ProcessorController {
         }
 
         LoanApplication updated = claimed.get();
-        historyService.log(updated, processor, "PROCESSOR_CLAIMED", "Processor claimed the application for review.");
+
+        Integer creditScore = outsideCheckService.fetchCreditScore();
+        Integer verifiedIncome = outsideCheckService.fetchVerifiedIncome();
+        if (creditScore != null) {
+            updated.setCreditScore(creditScore);
+        }
+        if (verifiedIncome != null) {
+            updated.setVerifiedIncome(BigDecimal.valueOf(verifiedIncome));
+        }
+        if (creditScore != null || verifiedIncome != null) {
+            updated.setUpdatedAt(LocalDateTime.now());
+            updated = loanApplicationService.updateApplication(applicationId, updated);
+        }
+
+        String outsideCheckDetails = "Outside checks: creditScore="
+                + (creditScore != null ? creditScore : "unavailable, manual entry required")
+                + ", verifiedIncome="
+                + (verifiedIncome != null ? verifiedIncome : "unavailable, manual entry required") + ".";
+        historyService.log(updated, processor, "PROCESSOR_CLAIMED",
+                "Processor claimed the application for review. " + outsideCheckDetails);
         return ResponseEntity.ok(updated);
     }
 
