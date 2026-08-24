@@ -13,40 +13,18 @@ const AuditLogs = () => {
   const [logs, setLogs] = useState([]);
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState('all');
+  const [hasNextPage, setHasNextPage] = useState(false);
 
   const fetchAuditLogs = async () => {
     try {
       setLoading(true);
+      setError('');
       const response = await userService.getAuditLogs(page, 20);
       setLogs(response.data || []);
+      setHasNextPage(response.totalPages ? page < response.totalPages : (response.data || []).length >= 20);
     } catch (err) {
       setError(err.message || 'Failed to load audit logs');
-      setLogs([
-        {
-          id: 1,
-          user: 'John Doe',
-          action: 'Application Submitted',
-          target: 'Application #123',
-          timestamp: new Date(),
-          status: 'success',
-        },
-        {
-          id: 2,
-          user: 'Jane Smith',
-          action: 'Document Verified',
-          target: 'Document #456',
-          timestamp: new Date(Date.now() - 3600000),
-          status: 'success',
-        },
-        {
-          id: 3,
-          user: 'Admin User',
-          action: 'User Created',
-          target: 'User: processor@example.com',
-          timestamp: new Date(Date.now() - 7200000),
-          status: 'success',
-        },
-      ]);
+      setLogs([]);
     } finally {
       setLoading(false);
     }
@@ -70,9 +48,7 @@ const AuditLogs = () => {
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg text-sm">
-            Showing demo data &mdash; {error}
-          </div>
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>
         )}
 
         <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
@@ -136,7 +112,7 @@ const AuditLogs = () => {
               Previous
             </Button>
             <span className="px-4 py-2 text-gray-700 font-semibold text-sm">Page {page}</span>
-            <Button variant="secondary" onClick={() => setPage(page + 1)} disabled={logs.length < 20}>
+            <Button variant="secondary" onClick={() => setPage(page + 1)} disabled={!hasNextPage}>
               Next
             </Button>
           </div>

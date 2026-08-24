@@ -120,27 +120,15 @@ const ApplicationDetails = () => {
                 <p className="text-gray-500 text-xs">Loan Term</p>
                 <p className="text-base font-semibold text-gray-800">{application.tenureMonths} months</p>
               </div>
-              <div>
-                <p className="text-gray-500 text-xs">Purpose</p>
-                <p className="text-base font-semibold text-gray-800">{application.purpose}</p>
-              </div>
             </div>
           </Card>
 
           <Card>
-            <h3 className="text-base font-bold text-gray-800 mb-4">Personal Details</h3>
+            <h3 className="text-base font-bold text-gray-800 mb-4">Income Details</h3>
             <div className="space-y-3">
               <div>
                 <p className="text-gray-500 text-xs">Monthly Income</p>
                 <p className="text-base font-semibold text-gray-800">₹{application.declaredIncome?.toLocaleString()}</p>
-              </div>
-              <div>
-                <p className="text-gray-500 text-xs">Employment</p>
-                <p className="text-base font-semibold text-gray-800">{application.employment}</p>
-              </div>
-              <div>
-                <p className="text-gray-500 text-xs">Duration</p>
-                <p className="text-base font-semibold text-gray-800">{application.employmentDuration} years</p>
               </div>
             </div>
           </Card>

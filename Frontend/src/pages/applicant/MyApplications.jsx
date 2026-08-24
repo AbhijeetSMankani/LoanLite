@@ -12,11 +12,11 @@ const FILTERS = [
   'draft',
   'submitted',
   'under verification',
-  'waiting for documents',
   'verified',
   'under review',
   'accepted',
   'rejected',
+  'withdrawn',
 ];
 
 const MyApplications = () => {
@@ -26,12 +26,14 @@ const MyApplications = () => {
   const [applications, setApplications] = useState([]);
   const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   const fetchApplications = async () => {
     try {
       setLoading(true);
       const response = await loanService.getMyApplications(page, 10);
       setApplications(response.data || []);
+      setTotalPages(response.totalPages || 1);
     } catch (err) {
       setError(err.message || 'Failed to load applications');
     } finally {
@@ -146,7 +148,7 @@ const MyApplications = () => {
               Previous
             </Button>
             <span className="px-4 py-2 text-gray-700 font-semibold text-sm">Page {page}</span>
-            <Button variant="secondary" onClick={() => setPage(page + 1)} disabled={filteredApplications.length < 10}>
+            <Button variant="secondary" onClick={() => setPage(page + 1)} disabled={page >= totalPages}>
               Next
             </Button>
           </div>

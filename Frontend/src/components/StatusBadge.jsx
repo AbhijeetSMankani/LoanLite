@@ -13,6 +13,7 @@ const STATUS_MAP = {
   accepted: { classes: 'bg-green-600 text-white', label: 'Accepted' },
   approved: { classes: 'bg-green-600 text-white', label: 'Approved' },
   approve: { classes: 'bg-green-600 text-white', label: 'Approved' },
+  manual_review: { classes: 'bg-amber-100 text-amber-700', label: 'Manual Review' },
   rejected: { classes: 'bg-red-600 text-white', label: 'Rejected' },
   reject: { classes: 'bg-red-600 text-white', label: 'Rejected' },
   referred: { classes: 'bg-primary-100 text-primary-700', label: 'Referred' },

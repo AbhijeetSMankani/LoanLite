@@ -6,7 +6,7 @@ import Card from '../../components/Card';
 import loanService from '../../services/loanService';
 import { Check } from 'lucide-react';
 
-const STEPS = ['Loan Details', 'Personal Details', 'Review'];
+const STEPS = ['Loan Details', 'Income Details', 'Review'];
 
 const selectClass =
   'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all';
@@ -20,10 +20,7 @@ const ApplyLoan = () => {
   const [formData, setFormData] = useState({
     loanAmount: '',
     loanTerm: '',
-    purpose: '',
     income: '',
-    employment: '',
-    employmentDuration: '',
   });
 
   const handleChange = (e) => {
@@ -40,7 +37,7 @@ const ApplyLoan = () => {
       setError('Please fill in all fields');
       return;
     }
-    if (step === 2 && (!formData.purpose || !formData.income)) {
+    if (step === 2 && !formData.income) {
       setError('Please fill in all fields');
       return;
     }
@@ -71,7 +68,11 @@ const ApplyLoan = () => {
     setLoading(true);
     setError('');
     try {
-      await loanService.createApplication({ ...formData, status: 'submitted' });
+      // Create always lands as Draft server-side regardless of what status
+      // is sent — actually moving to Submitted requires the dedicated
+      // submit action on the newly created application.
+      const { data: created } = await loanService.createApplication({ ...formData, status: 'draft' });
+      await loanService.submitApplication(created.id);
       setSuccess('Application submitted successfully!');
       setTimeout(() => navigate('/applicant/my-applications'), 1500);
     } catch (err) {
@@ -163,17 +164,8 @@ const ApplyLoan = () => {
         {/* Step 2 */}
         {step === 2 && (
           <div>
-            <h2 className="text-lg font-bold text-gray-800 mb-6">Personal Details</h2>
+            <h2 className="text-lg font-bold text-gray-800 mb-6">Income Details</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
-              <Input
-                label="Loan Purpose"
-                name="purpose"
-                type="text"
-                value={formData.purpose}
-                onChange={handleChange}
-                placeholder="e.g., Home renovation, Education"
-                required
-              />
               <Input
                 label="Monthly Income (₹)"
                 name="income"
@@ -183,22 +175,6 @@ const ApplyLoan = () => {
                 placeholder="Enter your monthly income"
                 required
               />
-              <Input
-                label="Employment Type"
-                name="employment"
-                type="text"
-                value={formData.employment}
-                onChange={handleChange}
-                placeholder="e.g., Salaried, Self-employed"
-              />
-              <Input
-                label="Employment Duration (years)"
-                name="employmentDuration"
-                type="number"
-                value={formData.employmentDuration}
-                onChange={handleChange}
-                placeholder="Years at current job"
-              />
             </div>
           </div>
         )}
@@ -207,7 +183,7 @@ const ApplyLoan = () => {
         {step === 3 && (
           <div>
             <h2 className="text-lg font-bold text-gray-800 mb-6">Review Your Application</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-gray-50 p-6 rounded-xl">
               <div>
                 <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Loan Amount</p>
                 <p className="text-2xl font-bold text-primary-600">₹{parseInt(formData.loanAmount || 0).toLocaleString()}</p>
@@ -215,10 +191,6 @@ const ApplyLoan = () => {
               <div>
                 <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Loan Term</p>
                 <p className="text-2xl font-bold text-gray-800">{formData.loanTerm} months</p>
-              </div>
-              <div>
-                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Purpose</p>
-                <p className="text-lg font-semibold text-gray-800">{formData.purpose}</p>
               </div>
               <div>
                 <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Monthly Income</p>

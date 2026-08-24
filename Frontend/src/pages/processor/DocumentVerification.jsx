@@ -311,7 +311,7 @@ const DocumentVerification = () => {
           }
         >
           <p className="text-gray-600 text-sm mb-4">
-            This marks the application as waiting on the applicant for {missingRequiredDocuments.join(', ') || 'some documents'}.
+            This notifies the applicant they still need to provide {missingRequiredDocuments.join(', ') || 'some documents'}. It does not change the application's status.
           </p>
           <Input
             label="Message (optional)"

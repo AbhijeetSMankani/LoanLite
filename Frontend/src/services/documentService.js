@@ -37,7 +37,9 @@ const documentService = {
     return { data };
   },
 
-  // Marks an application as waiting on the applicant for missing documents.
+  // Pure notification — does not change the application's status (there is
+  // no more "Waiting for Documents" state). Just logs a history entry and
+  // optionally stores a message for the applicant to see.
   requestDocuments: async (applicationId, message) => {
     const { data } = await axiosInstance.patch(
       `/documents/applications/${applicationId}/request-documents`,
