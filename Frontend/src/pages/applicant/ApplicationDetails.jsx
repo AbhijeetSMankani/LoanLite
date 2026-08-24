@@ -8,19 +8,32 @@ import Card from '../../components/Card';
 import EmptyState from '../../components/EmptyState';
 import loanService from '../../services/loanService';
 import documentService from '../../services/documentService';
-import { ArrowLeft, FileUp, FileCheck2, AlertTriangle } from 'lucide-react';
+import { getDisplayStatus } from '../../utils/applicationStatus';
+import { ArrowLeft, FileUp, FileCheck2, AlertTriangle, Send, Ban, Trash2 } from 'lucide-react';
+
+const DOCUMENT_TYPE_LABELS = {
+  PAN_CARD: 'PAN Card',
+  SALARY_SLIP: 'Salary Slip',
+  ADDRESS_PROOF: 'Address Proof',
+  OTHER: 'Other',
+};
+
+const documentTypeLabel = (type) => DOCUMENT_TYPE_LABELS[type?.toUpperCase()] || type || 'Other';
 
 const ApplicationDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [application, setApplication] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
   const [documentType, setDocumentType] = useState('OTHER');
   const [remarks, setRemarks] = useState('');
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
   const fetchApplicationDetails = async () => {
     try {
@@ -68,6 +81,54 @@ const ApplicationDetails = () => {
     }
   };
 
+  // Applicants have no endpoint to edit a document's file/metadata in place —
+  // the only supported path is deleting it (while still PENDING) and
+  // uploading a replacement, so that's what "editing" a document means here.
+  const handleDeleteDocument = async (doc) => {
+    if (!window.confirm(`Remove "${doc.fileName}"? You can upload a replacement afterward.`)) {
+      return;
+    }
+    try {
+      setActionLoading(true);
+      await documentService.deleteDocument(doc.id);
+      await fetchApplicationDetails();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to remove document');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleSubmitApplication = async () => {
+    try {
+      setActionLoading(true);
+      setError('');
+      await loanService.submitApplication(id);
+      setSuccess('Application submitted successfully.');
+      await fetchApplicationDetails();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to submit application');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    try {
+      setActionLoading(true);
+      setError('');
+      await loanService.withdrawApplication(id);
+      setShowWithdrawModal(false);
+      setSuccess('Application withdrawn.');
+      await fetchApplicationDetails();
+    } catch (err) {
+      setShowWithdrawModal(false);
+      setError(err.response?.data?.message || 'Failed to withdraw application');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   if (loading) return <Loader fullScreen />;
 
   if (!application) {
@@ -77,6 +138,11 @@ const ApplicationDetails = () => {
       </div>
     );
   }
+
+  const displayStatus = getDisplayStatus(application);
+  const isDraft = application.status === 'Draft';
+  const isWithdrawn = application.status === 'Withdrawn';
+  const isWaitingForDocuments = displayStatus === 'Waiting for Documents';
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -92,19 +158,45 @@ const ApplicationDetails = () => {
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>
         )}
+        {success && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
+            {success}
+          </div>
+        )}
 
         {/* Status Card */}
         <Card className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2">Application Status</p>
-              <StatusBadge status={application.status} />
+              <StatusBadge status={displayStatus} />
             </div>
             <div className="sm:text-right">
               <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2">Loan Amount</p>
               <p className="text-3xl font-bold text-primary-600">₹{application.loanAmount?.toLocaleString()}</p>
             </div>
           </div>
+
+          {isWaitingForDocuments && application.decisionComments && (
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+              <span className="font-semibold">Processor note:</span> {application.decisionComments}
+            </div>
+          )}
+
+          {(isDraft || !isWithdrawn) && (
+            <div className="mt-5 pt-5 border-t border-gray-100 flex flex-wrap gap-3">
+              {isDraft && (
+                <Button variant="success" size="sm" loading={actionLoading} onClick={handleSubmitApplication}>
+                  <Send size={14} /> Submit Application
+                </Button>
+              )}
+              {!isWithdrawn && (
+                <Button variant="danger" size="sm" onClick={() => setShowWithdrawModal(true)} disabled={actionLoading}>
+                  <Ban size={14} /> Withdraw Application
+                </Button>
+              )}
+            </div>
+          )}
         </Card>
 
         {/* Application Details */}
@@ -149,11 +241,26 @@ const ApplicationDetails = () => {
             <div className="space-y-2">
               {documents.map((doc) => (
                 <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg gap-3">
-                  <span className="text-gray-800 text-sm truncate flex items-center gap-2">
-                    <FileCheck2 size={14} className="text-gray-400 shrink-0" /> {doc.fileName}
-                  </span>
+                  <div className="min-w-0">
+                    <span className="text-gray-800 text-sm truncate flex items-center gap-2">
+                      <FileCheck2 size={14} className="text-gray-400 shrink-0" /> {doc.fileName}
+                    </span>
+                    <span className="text-xs text-gray-500 uppercase tracking-wide">
+                      {documentTypeLabel(doc.documentType)}
+                    </span>
+                  </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <StatusBadge status={doc.verificationStatus} />
+                    {doc.verificationStatus?.toUpperCase() === 'PENDING' && (
+                      <button
+                        onClick={() => handleDeleteDocument(doc)}
+                        disabled={actionLoading}
+                        title="Remove this document so you can upload a replacement"
+                        className="text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -220,6 +327,28 @@ const ApplicationDetails = () => {
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all"
             />
           </div>
+        </Modal>
+
+        {/* Withdraw Confirmation Modal */}
+        <Modal
+          isOpen={showWithdrawModal}
+          onClose={() => setShowWithdrawModal(false)}
+          title="Withdraw Application"
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setShowWithdrawModal(false)}>
+                Cancel
+              </Button>
+              <Button variant="danger" loading={actionLoading} onClick={handleWithdraw}>
+                Withdraw
+              </Button>
+            </>
+          }
+        >
+          <p className="text-gray-700 text-sm">
+            Are you sure you want to withdraw application #{application.id}? This cannot be undone, and the
+            application will move to the <span className="font-semibold">Withdrawn</span> state.
+          </p>
         </Modal>
       </div>
     </div>

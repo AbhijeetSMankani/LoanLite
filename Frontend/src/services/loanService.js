@@ -54,6 +54,13 @@ const loanService = {
     return { data };
   },
 
+  // Owning applicant only, no status precondition backend-side — can be
+  // called at any stage the application hasn't already been withdrawn.
+  withdrawApplication: async (applicationId) => {
+    const { data } = await axiosInstance.patch(`/loan-applications/withdraw/${applicationId}`);
+    return { data };
+  },
+
   // The pool of unclaimed applications waiting for an underwriter — GET
   // /underwriter/work-list is hardcoded server-side to status "Verified".
   getUnderwriterWorkList: async () => {

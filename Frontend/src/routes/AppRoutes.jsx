@@ -20,6 +20,7 @@ import UnderwriterApplications from '../pages/underwriter/Applications';
 import LoanDecision from '../pages/underwriter/LoanDecision';
 import AdminDashboard from '../pages/admin/Dashboard';
 import AuditLogs from '../pages/admin/AuditLogs';
+import UserManagement from '../pages/admin/UserManagement';
 
 const ROLE_HOME = {
   applicant: '/applicant/dashboard',
@@ -186,6 +187,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute requiredRole="admin">
             <AuditLogs />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute requiredRole="admin">
+            <UserManagement />
           </ProtectedRoute>
         }
       />

@@ -5,13 +5,15 @@ import StatusBadge from '../../components/StatusBadge';
 import Button from '../../components/Button';
 import EmptyState from '../../components/EmptyState';
 import loanService from '../../services/loanService';
-import { FilePlus2, Inbox } from 'lucide-react';
+import { getDisplayStatus, isWaitingForDocuments } from '../../utils/applicationStatus';
+import { FilePlus2, Inbox, AlertTriangle } from 'lucide-react';
 
 const FILTERS = [
   'all',
   'draft',
   'submitted',
   'under verification',
+  'waiting for documents',
   'verified',
   'under review',
   'accepted',
@@ -47,7 +49,11 @@ const MyApplications = () => {
   }, [page]);
 
   const filteredApplications =
-    filter === 'all' ? applications : applications.filter((app) => app.status?.toLowerCase() === filter);
+    filter === 'all'
+      ? applications
+      : applications.filter((app) => getDisplayStatus(app)?.toLowerCase() === filter);
+
+  const waitingApplications = applications.filter(isWaitingForDocuments);
 
   if (loading) return <Loader fullScreen />;
 
@@ -67,6 +73,33 @@ const MyApplications = () => {
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{error}</div>
+        )}
+
+        {waitingApplications.length > 0 && (
+          <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+            <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-amber-800">
+              <p className="font-semibold mb-1">
+                {waitingApplications.length === 1
+                  ? 'An application is waiting on you'
+                  : `${waitingApplications.length} applications are waiting on you`}
+              </p>
+              <p>
+                The processor requested additional documents on{' '}
+                {waitingApplications.map((app, i) => (
+                  <React.Fragment key={app.id}>
+                    <button
+                      onClick={() => navigate(`/applicant/application/${app.id}`)}
+                      className="font-semibold underline hover:text-amber-900"
+                    >
+                      #{app.id}
+                    </button>
+                    {i < waitingApplications.length - 1 ? ', ' : '.'}
+                  </React.Fragment>
+                ))}
+              </p>
+            </div>
+          </div>
         )}
 
         {/* Filter */}
@@ -119,7 +152,7 @@ const MyApplications = () => {
                         ₹{application.loanAmount?.toLocaleString() || 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <StatusBadge status={application.status} />
+                        <StatusBadge status={getDisplayStatus(application)} />
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {new Date(application.createdAt).toLocaleDateString()}

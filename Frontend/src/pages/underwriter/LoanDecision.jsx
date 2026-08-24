@@ -6,8 +6,18 @@ import StatusBadge from '../../components/StatusBadge';
 import Card from '../../components/Card';
 import EmptyState from '../../components/EmptyState';
 import loanService from '../../services/loanService';
+import documentService from '../../services/documentService';
 import { fullName } from '../../utils/role';
-import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle, FileCheck2 } from 'lucide-react';
+
+const DOCUMENT_TYPE_LABELS = {
+  PAN_CARD: 'PAN Card',
+  SALARY_SLIP: 'Salary Slip',
+  ADDRESS_PROOF: 'Address Proof',
+  OTHER: 'Other',
+};
+
+const documentTypeLabel = (type) => DOCUMENT_TYPE_LABELS[type?.toUpperCase()] || type || 'Other';
 
 const LoanDecision = () => {
   const { id } = useParams();
@@ -17,6 +27,7 @@ const LoanDecision = () => {
   const [success, setSuccess] = useState('');
   const [application, setApplication] = useState(null);
   const [rules, setRules] = useState(null);
+  const [documents, setDocuments] = useState([]);
   const [decision, setDecision] = useState('ACCEPT');
   const [comments, setComments] = useState('');
 
@@ -28,6 +39,9 @@ const LoanDecision = () => {
 
       const rulesResponse = await loanService.getLoanRules(id);
       setRules(rulesResponse.data);
+
+      const docsResponse = await documentService.getUploadedDocuments(id);
+      setDocuments(docsResponse.data || []);
     } catch (err) {
       setError(err.message || 'Failed to load application');
     } finally {
@@ -141,6 +155,30 @@ const LoanDecision = () => {
             )}
           </Card>
         </div>
+
+        {/* Documents Section (read-only — underwriter reviews, doesn't edit) */}
+        <Card className="mb-6">
+          <h3 className="text-base font-bold text-gray-800 mb-4">Documents</h3>
+          {documents.length === 0 ? (
+            <p className="text-gray-500 text-sm py-2">No documents uploaded yet</p>
+          ) : (
+            <div className="space-y-2">
+              {documents.map((doc) => (
+                <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg gap-3">
+                  <div className="min-w-0">
+                    <span className="text-gray-800 text-sm truncate flex items-center gap-2">
+                      <FileCheck2 size={14} className="text-gray-400 shrink-0" /> {doc.fileName}
+                    </span>
+                    <span className="text-xs text-gray-500 uppercase tracking-wide">
+                      {documentTypeLabel(doc.documentType)}
+                    </span>
+                  </div>
+                  <StatusBadge status={doc.verificationStatus} />
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
 
         {/* Decision Section */}
         <Card className="mb-6">

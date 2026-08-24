@@ -4,7 +4,7 @@ import Loader from '../../components/Loader';
 import StatCard from '../../components/StatCard';
 import Card from '../../components/Card';
 import userService from '../../services/userService';
-import { Users, ClipboardList, Settings } from 'lucide-react';
+import { ClipboardList, Settings, UserCog } from 'lucide-react';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -69,12 +69,25 @@ const AdminDashboard = () => {
             <p className="text-gray-500 text-sm">View system activity and user actions</p>
           </Card>
 
+          <Card
+            onClick={() => navigate('/admin/users')}
+            className="hover:shadow-md transition-shadow cursor-pointer"
+          >
+            <div className="flex items-center mb-4">
+              <div className="bg-green-50 text-green-600 rounded-lg p-3 mr-4">
+                <UserCog size={22} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-800">Manage Users</h3>
+            </div>
+            <p className="text-gray-500 text-sm">Assign processor, underwriter, or admin roles</p>
+          </Card>
+
           <Card className="opacity-70 cursor-not-allowed relative">
             <span className="absolute top-4 right-4 text-[10px] font-bold uppercase tracking-wide bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
               Coming soon
             </span>
             <div className="flex items-center mb-4">
-              <div className="bg-green-50 text-green-600 rounded-lg p-3 mr-4">
+              <div className="bg-gray-100 text-gray-500 rounded-lg p-3 mr-4">
                 <Settings size={22} />
               </div>
               <h3 className="text-lg font-bold text-gray-800">Settings</h3>

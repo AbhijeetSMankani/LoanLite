@@ -12,6 +12,21 @@ import StatusBadge from '../../components/StatusBadge';
 import { fullName } from '../../utils/role';
 import { FileSearch, AlertTriangle } from 'lucide-react';
 
+const DOCUMENT_TYPE_LABELS = {
+  PAN_CARD: 'PAN Card',
+  SALARY_SLIP: 'Salary Slip',
+  ADDRESS_PROOF: 'Address Proof',
+  OTHER: 'Other',
+};
+
+const documentTypeLabel = (type) => DOCUMENT_TYPE_LABELS[type?.toUpperCase()] || type || 'Other';
+
+// Mirrors ProcessorController.verifyApplication()'s actual rule: for each
+// required type, at least one uploaded document of that type must be
+// individually VERIFIED — other documents (extra copies, OTHER-type, or
+// still-pending/rejected ones) don't block verification.
+const REQUIRED_DOCUMENT_TYPES = ['PAN_CARD', 'SALARY_SLIP', 'ADDRESS_PROOF'];
+
 const DocumentVerification = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -45,10 +60,11 @@ const DocumentVerification = () => {
     }
   };
 
-  const allDocumentsVerified =
-    missingRequiredDocuments.length === 0 &&
-    documents.length > 0 &&
-    documents.every((doc) => doc.verificationStatus?.toUpperCase() === 'VERIFIED');
+  const allDocumentsVerified = REQUIRED_DOCUMENT_TYPES.every((type) =>
+    documents.some(
+      (doc) => doc.documentType?.toUpperCase() === type && doc.verificationStatus?.toUpperCase() === 'VERIFIED'
+    )
+  );
 
   const handleRequestDocuments = async () => {
     try {
@@ -206,7 +222,7 @@ const DocumentVerification = () => {
                   <div className="min-w-0">
                     <p className="font-semibold text-gray-800 truncate">{doc.fileName}</p>
                     <p className="text-xs text-gray-500">
-                      Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
+                      {documentTypeLabel(doc.documentType)} · Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
                     </p>
                   </div>
 
