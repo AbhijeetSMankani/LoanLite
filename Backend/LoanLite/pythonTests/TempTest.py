@@ -1284,7 +1284,12 @@ else:
               label="owning applicant lists history entries")
     record(r.ok and any(h["id"] == task11_history_id for h in page_content(r)),
            "task-11 history entry appears in the owning applicant's list")
-    r = call("GET", "/application-history", token=admin_token, expect=200,
+    # size=200: admin sees every history entry system-wide, and this shared dev database has
+    # accumulated far more than the default page size (20) worth of entries across this repo's
+    # testing history - the default page would silently miss a freshly-created entry once total
+    # rows crossed that threshold, which is exactly what started happening here (unrelated to
+    # whatever feature is being tested at the time).
+    r = call("GET", "/application-history", token=admin_token, params={"size": 200}, expect=200,
               label="admin lists history entries")
     record(r.ok and any(h["id"] == task11_history_id for h in page_content(r)),
            "task-11 history entry appears in the admin's list")

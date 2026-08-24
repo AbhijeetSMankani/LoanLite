@@ -1,6 +1,8 @@
 package com.loanlite.loanlite.controllers;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +57,17 @@ public class ProcessorController {
             "SALARY_SLIP",
             "ADDRESS_PROOF"
     );
+
+    // Debt-to-income proxy threshold (added 2026-08-24 at the user's request): this loan's own
+    // EMI as a fraction of declaredIncome above this value independently downgrades the
+    // credit-score-based recommendation by one tier, even overriding a strong credit score - an
+    // applicant who can't realistically afford the installment is a real risk regardless of
+    // their score. There's no existing-debt field in this data model, so EMI/income is the
+    // closest computable proxy for a true debt-to-income ratio. declaredIncome is used rather
+    // than verifiedIncome since the latter comes from a random-number outside check
+    // (backendTodo.csv task 5), not a meaningful affordability signal - per the user's explicit
+    // call.
+    private static final double EMI_TO_INCOME_DOWNGRADE_THRESHOLD = 0.50;
 
     // GET /api/processor/work-list
     // Returns applications that are waiting for a staff member, typically those in Submitted state.
@@ -162,6 +175,19 @@ public class ProcessorController {
             reason = "Application does not meet minimum eligibility rules.";
         }
 
+        if (!"REJECT".equals(recommendation) && existing.getEmi() != null && existing.getDeclaredIncome() != null
+                && existing.getDeclaredIncome().compareTo(BigDecimal.ZERO) > 0) {
+            double emiToIncomeRatio = existing.getEmi().doubleValue() / existing.getDeclaredIncome().doubleValue();
+            if (emiToIncomeRatio > EMI_TO_INCOME_DOWNGRADE_THRESHOLD) {
+                String downgradedFrom = recommendation;
+                recommendation = "APPROVE".equals(recommendation) ? "MANUAL_REVIEW" : "REJECT";
+                reason += String.format(
+                        " Downgraded from %s: EMI (%s) is %.1f%% of declared income (%s), exceeding the %.0f%% threshold.",
+                        downgradedFrom, formatInr(existing.getEmi()), emiToIncomeRatio * 100,
+                        formatInr(existing.getDeclaredIncome()), EMI_TO_INCOME_DOWNGRADE_THRESHOLD * 100);
+            }
+        }
+
         existing.setStatus("Verified");
         existing.setRecommendation(recommendation);
         existing.setRecommendationReason(reason);
@@ -171,5 +197,24 @@ public class ProcessorController {
         historyService.log(updated, caller, "PROCESSOR_VERIFIED",
                 "Recommendation: " + recommendation + " - " + reason);
         return ResponseEntity.ok(updated);
+    }
+
+    // Formats a rupee amount using Indian digit grouping (lakhs/crores - e.g. ₹12,34,567), not
+    // Western grouping (12,345,67 -> would be 12,345,67 vs the correct 12,34,567). Hand-rolled
+    // rather than NumberFormat.getInstance(new Locale("en","IN")) - verified on this JVM that the
+    // locale-based formatter falls back to Western grouping instead of applying Indian CLDR rules.
+    private static String formatInr(BigDecimal amount) {
+        BigInteger whole = amount.setScale(0, RoundingMode.HALF_UP).toBigInteger();
+        boolean negative = whole.signum() < 0;
+        String digits = whole.abs().toString();
+
+        StringBuilder grouped = new StringBuilder(digits.length() <= 3 ? digits : digits.substring(digits.length() - 3));
+        int i = digits.length() - 3;
+        while (i > 0) {
+            int start = Math.max(0, i - 2);
+            grouped.insert(0, digits.substring(start, i) + ",");
+            i = start;
+        }
+        return (negative ? "-₹" : "₹") + grouped;
     }
 }

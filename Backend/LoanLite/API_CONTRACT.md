@@ -332,6 +332,19 @@ choice, not a fixed enum enforced anywhere - don't assume the set is closed.
   - `creditScore >= 700` AND (`verifiedIncome` is null OR `>= 30000`) → `recommendation = "APPROVE"`.
   - `creditScore >= 650` → `recommendation = "MANUAL_REVIEW"`.
   - else → `recommendation = "REJECT"` *(no trailing "ED", inconsistent with the "REJECTED" used for the document-blocking 400 case above - frontend must handle both spellings)* - **this is not a terminal rejection**, the application still moves to `"Verified"` and can proceed to underwriter review; the actual accept/reject decision only happens at §3.7's decision endpoint.
+- **Debt-to-income downgrade** (added 2026-08-24, at the user's request): after the credit-score tier
+  above is picked, if the recommendation isn't already `REJECT` and `emi / declaredIncome > 0.50` (50%,
+  `ProcessorController.EMI_TO_INCOME_DOWNGRADE_THRESHOLD`), the recommendation is downgraded by exactly
+  one step (`APPROVE` → `MANUAL_REVIEW`, `MANUAL_REVIEW` → `REJECT`) and `recommendationReason` gets an
+  appended explanation with the actual EMI/declaredIncome rupee figures in **Indian digit grouping**
+  (e.g. `"₹1,77,698"`, lakhs/crores - not Western grouping like `"177,698"`; hand-rolled in
+  `ProcessorController.formatInr()` since this JVM's `NumberFormat` with an `en-IN` locale was verified
+  to still produce Western grouping). This is an EMI-to-income ratio, not a true multi-debt DTI - there's
+  no field anywhere in this data model for the applicant's *other* existing debt obligations, so this
+  loan's own computed `emi` is the closest available proxy. Divides by `declaredIncome`, **not**
+  `verifiedIncome` - the latter comes from a random-number outside check (§3.6 outside checks) and isn't
+  a meaningful affordability signal. This can override even a strong credit score, e.g. `creditScore=800`
+  with an unaffordable EMI still gets downgraded from `APPROVE`.
 
 ### 3.7 `UnderwriterController` - `/api/underwriter`
 

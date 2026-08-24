@@ -37,6 +37,12 @@ from types import SimpleNamespace
 
 import requests
 
+# Windows' console defaults to a cp1252-family codec that can't encode characters like the
+# rupee sign (backendTodo follow-up, 2026-08-24, ProcessorController.formatInr()) - reconfigure
+# stdout to UTF-8 so a response body containing non-ASCII text doesn't crash print() mid-run.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 BASE = "http://localhost:8080/api"
 TIMEOUT = 15
 PASSWORD = "TestPass123!"
