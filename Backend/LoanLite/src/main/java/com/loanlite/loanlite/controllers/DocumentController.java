@@ -175,9 +175,13 @@ public class DocumentController {
 
 
     // PATCH /api/applications/{applicationId}/request-documents
-    // Requests missing/corrected documents from the applicant. Pure notification action - it no
-    // longer changes status (the "Waiting for Documents" status is gone entirely; the application
-    // just stays Under Verification). Assigned-processor-only, same ownership gap fix as verify().
+    // Requests missing/corrected documents from the applicant. Sets status to
+    // "Waiting for Documents" (backendTodo.csv task 8) - purely a cosmetic status string so the
+    // applicant-facing UI can show a distinct "waiting on you" message; no access/query/work-list
+    // rule is conditioned on this status, it behaves exactly like "Under Verification" everywhere
+    // else. Assigned-processor-only, same ownership gap fix as verify(). Reverts back to
+    // "Under Verification" automatically once the applicant uploads documents that satisfy every
+    // required type again - see LoanApplicationController.uploadDocument().
     @PatchMapping("/applications/{applicationId}/request-documents")
     @PreAuthorize("hasRole('PROCESSOR')")
     public ResponseEntity<LoanApplication> requestDocuments(
@@ -194,6 +198,7 @@ public class DocumentController {
         if (message != null) {
             existing.setDecisionComments(message);
         }
+        existing.setStatus("Waiting for Documents");
         existing.setUpdatedAt(LocalDateTime.now());
 
         LoanApplication updated = loanApplicationService.updateApplication(applicationId, existing);

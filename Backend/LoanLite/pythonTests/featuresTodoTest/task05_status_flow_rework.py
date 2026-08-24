@@ -17,6 +17,14 @@ fixes and one brand-new endpoint):
    must return 400 (not change status) when verification can't proceed, instead
    of moving the application to that now-gone status. DocumentController.requestDocuments()
    becomes a pure notification action - it must NOT touch status at all anymore.
+   UPDATE (backendTodo.csv task 8, "Done" 2026-08-23): the user later asked for a NARROWER,
+   differently-scoped "Waiting for Documents" status - triggered ONLY by requestDocuments(),
+   purely a cosmetic status string with no functional/access/query difference from
+   "Under Verification", auto-reverting once the applicant uploads documents that satisfy
+   every required type again. verifyApplication()'s behavior above (400, no status change on
+   failure) is UNCHANGED - the "removed entirely" framing only applies to the old
+   verify()-triggered version. See Section C below for the requestDocuments()-specific checks,
+   updated to match.
 
 3. Verification strictness: verifyApplication() must require every required
    document type (PAN_CARD, SALARY_SLIP, ADDRESS_PROOF) to have an uploaded
@@ -69,7 +77,9 @@ STATUS_VERIFIED = "Verified"                       # was "Ready for Underwriter"
 STATUS_UNDER_REVIEW = "Under Review"               # was "In Underwriting Review"
 STATUS_ACCEPTED = "Accepted"
 STATUS_REJECTED = "Rejected"
-REMOVED_STATUS_WAITING_FOR_DOCS = "Waiting for Documents"  # must never appear again
+REMOVED_STATUS_WAITING_FOR_DOCS = "Waiting for Documents"  # must never be set by verifyApplication()'s
+# failure path specifically - backendTodo.csv task 8 later reintroduced this same status string,
+# but only via requestDocuments() (see Section C below), never from verify() failing
 
 REQUIRED_DOCUMENT_TYPES = ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF")
 
@@ -304,11 +314,14 @@ else:
          json={"message": "please resend salary slip"}, expect=200,
          label="ASSIGNED processor requests documents")
     status_after_request = get_status(app_c, users.admin.token)
-    record(status_after_request == status_before_request,
-           f"request-documents does not change status (before={status_before_request!r}, "
-           f"after={status_after_request!r}) - it's a pure notification action now")
-    record(status_after_request != REMOVED_STATUS_WAITING_FOR_DOCS,
-           "request-documents never sets the removed 'Waiting for Documents' status")
+    # backendTodo.csv task 8 ("Done", 2026-08-23): request-documents now DOES set a status -
+    # "Waiting for Documents" - a narrower, later-requested revival of the concept this section's
+    # docstring originally said was "removed entirely". See
+    # backendTodoTest/task08_waiting_for_documents.py for the full behavior (auto-revert on
+    # re-upload, no functional/access difference from Under Verification).
+    record(status_after_request == "Waiting for Documents",
+           f"request-documents now sets status to 'Waiting for Documents' (before={status_before_request!r}, "
+           f"after={status_after_request!r})")
 
     guarded(
         f"/applications/{app_c}", users.admin.token,

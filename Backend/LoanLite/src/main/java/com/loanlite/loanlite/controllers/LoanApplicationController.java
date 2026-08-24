@@ -312,7 +312,41 @@ public class LoanApplicationController {
         document.setRemarks(remarks);
         document.setUploadedAt(LocalDateTime.now());
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(documentService.createDocument(document));
+        Document created = documentService.createDocument(document);
+
+        // backendTodo.csv task 8: once the processor has asked for documents ("Waiting for
+        // Documents"), a fresh upload that brings every required type to a non-REJECTED state
+        // (PENDING "unverified" or VERIFIED "accepted" both count - the applicant has done their
+        // part, it's back in the processor's court) automatically flips status back to
+        // "Under Verification". Purely a status-string swap either way - no access/query/
+        // work-list rule is conditioned on either status value.
+        if ("Waiting for Documents".equalsIgnoreCase(application.getStatus())) {
+            List<Document> allDocuments = documentService.findByApplicationId(id);
+            if (allRequiredDocumentsSubmitted(allDocuments)) {
+                application.setStatus("Under Verification");
+                application.setUpdatedAt(LocalDateTime.now());
+                LoanApplication updatedApplication = service.updateApplication(id, application);
+                historyService.log(updatedApplication, accessGuard.currentUser(), "DOCUMENTS_RESUBMITTED",
+                        "Applicant uploaded the requested documents; application is back with the processor.");
+            }
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    // True once every REQUIRED_DOCUMENT_TYPES has at least one uploaded document that isn't
+    // REJECTED (PENDING or VERIFIED both count) - used to auto-revert "Waiting for Documents"
+    // back to "Under Verification" in uploadDocument() above (backendTodo.csv task 8).
+    private boolean allRequiredDocumentsSubmitted(List<Document> documents) {
+        for (String required : REQUIRED_DOCUMENT_TYPES) {
+            boolean satisfied = documents.stream().anyMatch(doc ->
+                    required.equalsIgnoreCase(doc.getDocumentType())
+                            && !"REJECTED".equalsIgnoreCase(doc.getVerificationStatus()));
+            if (!satisfied) {
+                return false;
+            }
+        }
+        return true;
     }
 
         // GET /api/documents/applications/{applicationId}
