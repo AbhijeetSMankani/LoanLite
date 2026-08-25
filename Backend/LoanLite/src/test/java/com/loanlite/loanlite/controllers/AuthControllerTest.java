@@ -1,28 +1,81 @@
 package com.loanlite.loanlite.controllers;
 
-import com.loanlite.loanlite.controllers.auth.RegisterRequest;
 import com.loanlite.loanlite.controllers.auth.AuthRequest;
-import com.loanlite.loanlite.entities.User;
+import com.loanlite.loanlite.controllers.auth.AuthResponse;
+import com.loanlite.loanlite.controllers.auth.ChangePasswordRequest;
+import com.loanlite.loanlite.controllers.auth.RegisterRequest;
 import com.loanlite.loanlite.controllers.auth.UserResponse;
+import com.loanlite.loanlite.entities.User;
+import com.loanlite.loanlite.security.jwt.JwtUtil;
 import com.loanlite.loanlite.services.UserService;
 import org.junit.jupiter.api.Test;
-
-import org.springframework.http.HttpStatusCode;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.InjectMocks;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 
-import java.util.Collection;
-import java.util.Collections;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-public class AuthControllerTest {
+@ExtendWith(MockitoExtension.class)
+class AuthControllerTest {
+
+    @Mock
+    private AuthenticationManager authenticationManager;
+
+    @Mock
+    private JwtUtil jwtUtil;
+
+    @Mock
+    private UserService userService;
+
+    @InjectMocks
+    private AuthController controller;
+
+    // ---------- login ----------
 
     @Test
-    public void registerReturnsUserResponseWithoutPassword() {
+    void loginReturnsBearerTokenOnSuccessfulAuthentication() {
+        AuthRequest req = new AuthRequest();
+        req.setEmail("john@example.com");
+        req.setPassword("secretPass");
+
+        org.springframework.security.core.userdetails.UserDetails principal =
+                org.springframework.security.core.userdetails.User
+                        .withUsername("john@example.com")
+                        .password("")
+                        .authorities("ROLE_USER")
+                        .build();
+
+        Authentication auth = mock(Authentication.class);
+        when(auth.getPrincipal()).thenReturn(principal);
+        when(authenticationManager.authenticate(any())).thenReturn(auth);
+        when(jwtUtil.generateToken(any())).thenReturn("fake-jwt-token");
+
+        ResponseEntity<AuthResponse> resp = controller.login(req);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody()).isNotNull();
+        assertThat(resp.getBody().getTokenType()).isEqualTo("Bearer");
+        assertThat(resp.getBody().getToken()).isEqualTo("fake-jwt-token");
+    }
+
+    // ---------- register ----------
+
+    @Test
+    void registerReturnsCreatedUserResponse() {
         RegisterRequest req = new RegisterRequest();
         req.setEmail("john@example.com");
         req.setPassword("secretPass");
@@ -36,47 +89,112 @@ public class AuthControllerTest {
         saved.setLastName("Doe");
         saved.setRole("ROLE_USER");
 
-        // simple fake UserService by overriding createUser
-        UserService userService = new UserService(passwordEncoder()) {
-            @Override
-            public User createUser(User user) {
-                return saved;
-            }
-        };
+        when(userService.createUser(any(User.class))).thenReturn(saved);
 
-        AuthController controller = new AuthController(null, null, userService);
         ResponseEntity<UserResponse> resp = controller.register(req);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatusCode.valueOf(201));
-        assertThat(resp.getBody()).isNotNull();
-        assertThat(resp.getBody().getEmail()).isEqualTo("john@example.com");
-        assertThat(resp.getBody().getFirstName()).isEqualTo("John");
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        UserResponse body = resp.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.getId()).isEqualTo(42L);
+        assertThat(body.getEmail()).isEqualTo("john@example.com");
+        assertThat(body.getFirstName()).isEqualTo("John");
+        assertThat(body.getLastName()).isEqualTo("Doe");
+        assertThat(body.getRole()).isEqualTo("ROLE_USER");
+    }
+
+    // ---------- logout ----------
+
+    @Test
+    void logoutReturns200WithNoBody() {
+        ResponseEntity<Void> resp = controller.logout();
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(resp.getBody()).isNull();
+    }
+
+    // ---------- me ----------
+
+    @Test
+    void meReturnsUserResponseWhenUserFound() {
+        User found = new User();
+        found.setId(7L);
+        found.setEmail("someone@example.com");
+        found.setFirstName("Some");
+        found.setLastName("One");
+        found.setRole("ROLE_USER");
+
+        when(userService.findByEmail("someone@example.com")).thenReturn(Optional.of(found));
+
+        Authentication authentication = new UsernamePasswordAuthenticationToken("someone@example.com", null);
+        ResponseEntity<UserResponse> resp = controller.me(authentication);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        UserResponse body = resp.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.getId()).isEqualTo(7L);
+        assertThat(body.getEmail()).isEqualTo("someone@example.com");
     }
 
     @Test
-    public void loginReturnsToken() {
-        AuthRequest req = new AuthRequest();
-        req.setEmail("john@example.com");
-        req.setPassword("secretPass");
+    void meThrowsIllegalStateExceptionWhenUserNotFound() {
+        when(userService.findByEmail("someone@example.com")).thenReturn(Optional.empty());
 
-        // fake AuthenticationManager
-        AuthenticationManager authManager = authentication -> {
-            Collection<GrantedAuthority> auths = Collections.emptyList();
-            Authentication a = new UsernamePasswordAuthenticationToken(new org.springframework.security.core.userdetails.User("john@example.com","",auths), null, auths);
-            return a;
-        };
+        Authentication authentication = new UsernamePasswordAuthenticationToken("someone@example.com", null);
 
-        // fake JwtUtil - we won't call it here to avoid setup complexity
-        com.loanlite.loanlite.security.jwt.JwtUtil jwtUtil = new com.loanlite.loanlite.security.jwt.JwtUtil();
-
-        AuthController controller = new AuthController(authManager, jwtUtil, null);
-
-        Authentication auth = authManager.authenticate(new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
-        assertThat(auth).isNotNull();
-        assertThat(auth.getName()).isEqualTo("john@example.com");
+        assertThatThrownBy(() -> controller.me(authentication)).isInstanceOf(IllegalStateException.class);
     }
 
-    // minimal PasswordEncoder provider for tests
-    private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder() {
-        return new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+    // ---------- changePassword ----------
+
+    @Test
+    void changePasswordHappyPathDelegatesToUserService() {
+        User found = new User();
+        found.setId(9L);
+        found.setEmail("someone@example.com");
+
+        when(userService.findByEmail("someone@example.com")).thenReturn(Optional.of(found));
+
+        Authentication authentication = new UsernamePasswordAuthenticationToken("someone@example.com", null);
+        ChangePasswordRequest req = new ChangePasswordRequest();
+        req.setCurrentPassword("oldPass");
+        req.setNewPassword("newPass123");
+
+        ResponseEntity<Void> resp = controller.changePassword(authentication, req);
+
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(userService).changePassword(9L, "oldPass", "newPass123");
+    }
+
+    @Test
+    void changePasswordThrowsIllegalStateExceptionWhenUserNotFound() {
+        when(userService.findByEmail("someone@example.com")).thenReturn(Optional.empty());
+
+        Authentication authentication = new UsernamePasswordAuthenticationToken("someone@example.com", null);
+        ChangePasswordRequest req = new ChangePasswordRequest();
+        req.setCurrentPassword("oldPass");
+        req.setNewPassword("newPass123");
+
+        assertThatThrownBy(() -> controller.changePassword(authentication, req))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void changePasswordPropagatesIllegalArgumentExceptionFromUserService() {
+        User found = new User();
+        found.setId(9L);
+        found.setEmail("someone@example.com");
+
+        when(userService.findByEmail("someone@example.com")).thenReturn(Optional.of(found));
+        org.mockito.Mockito.doThrow(new IllegalArgumentException("current password is incorrect"))
+                .when(userService).changePassword(eq(9L), any(), any());
+
+        Authentication authentication = new UsernamePasswordAuthenticationToken("someone@example.com", null);
+        ChangePasswordRequest req = new ChangePasswordRequest();
+        req.setCurrentPassword("wrongPass");
+        req.setNewPassword("newPass123");
+
+        assertThatThrownBy(() -> controller.changePassword(authentication, req))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }
