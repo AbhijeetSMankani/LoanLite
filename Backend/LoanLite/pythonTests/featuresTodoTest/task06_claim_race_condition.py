@@ -49,7 +49,7 @@ from common import (  # noqa: E402
 
 import requests  # noqa: E402
 
-REQUIRED_DOCUMENT_TYPES = ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF")
+REQUIRED_DOCUMENT_TYPES = ("PAN_CARD", "SALARY_SLIP", "AADHAAR_CARD")
 
 users = setup_users()
 

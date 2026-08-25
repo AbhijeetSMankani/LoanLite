@@ -239,7 +239,7 @@
             "url": { "raw": "{{baseUrl}}/api/documents", "host": ["{{baseUrl}}"], "path": ["api", "documents"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"application\": { \"id\": {{applicationId}} },\n  \"documentType\": \"ADDRESS_PROOF\",\n  \"fileName\": \"address_proof.pdf\",\n  \"filePath\": \"uploads/applications/{{applicationId}}/address_proof.pdf\",\n  \"verificationStatus\": \"PENDING\"\n}"
+              "raw": "{\n  \"application\": { \"id\": {{applicationId}} },\n  \"documentType\": \"AADHAAR_CARD\",\n  \"fileName\": \"aadhaar_card.pdf\",\n  \"filePath\": \"uploads/applications/{{applicationId}}/aadhaar_card.pdf\",\n  \"verificationStatus\": \"PENDING\"\n}"
             }
           }
         },
@@ -278,7 +278,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"application\": { \"id\": {{applicationId}} },\n  \"documentType\": \"ADDRESS_PROOF\",\n  \"fileName\": \"address_proof_v2.pdf\",\n  \"filePath\": \"uploads/applications/{{applicationId}}/address_proof_v2.pdf\",\n  \"verificationStatus\": \"VERIFIED\"\n}"
+              "raw": "{\n  \"application\": { \"id\": {{applicationId}} },\n  \"documentType\": \"AADHAAR_CARD\",\n  \"fileName\": \"aadhaar_card_v2.pdf\",\n  \"filePath\": \"uploads/applications/{{applicationId}}/aadhaar_card_v2.pdf\",\n  \"verificationStatus\": \"VERIFIED\"\n}"
             }
           }
         },

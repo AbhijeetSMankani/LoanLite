@@ -124,7 +124,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"message\": \"Please upload your salary slip and address proof.\"\n}"
+          "raw": "{\n  \"message\": \"Please upload your salary slip and Aadhaar card.\"\n}"
         }
       }
     },

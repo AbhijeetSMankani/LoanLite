@@ -13,7 +13,7 @@ open questions were resolved):
     scoping, the assigned processor keeps ownership, etc).
   - LoanApplicationController.uploadDocument() auto-reverts status back
     to "Under Verification" once every required document type
-    (PAN_CARD/SALARY_SLIP/ADDRESS_PROOF) has at least one document that
+    (PAN_CARD/SALARY_SLIP/AADHAAR_CARD) has at least one document that
     isn't REJECTED (PENDING "unverified" or VERIFIED "accepted" both
     count) - confirmed by the user as the revert condition.
   - Logs a new "DOCUMENTS_RESUBMITTED" history entry on that auto-revert.
@@ -78,7 +78,7 @@ else:
     section("Task 8: requestDocuments() sets status to 'Waiting for Documents'")
 
     r = call("PATCH", f"/documents/applications/{app_id}/request-documents", token=users.processor.token,
-              json={"message": "please upload PAN card, salary slip, and address proof"}, expect=200,
+              json={"message": "please upload PAN card, salary slip, and Aadhaar card"}, expect=200,
               label="processor requests documents")
     if r.ok:
         record(r.json().get("status") == "Waiting for Documents",
@@ -126,7 +126,7 @@ else:
     # -----------------------------------------------------------------
     section("Task 8: uploading all 3 required types (still PENDING) auto-reverts to Under Verification")
 
-    for doc_type in ("SALARY_SLIP", "ADDRESS_PROOF"):
+    for doc_type in ("SALARY_SLIP", "AADHAAR_CARD"):
         r = upload_document(app_id, users.applicant.token, doc_type, label=f"upload {doc_type} (completing the set)")
         if r.ok:
             doc_ids.append(r.json()["id"])

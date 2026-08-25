@@ -208,10 +208,10 @@ def upload_document(app_id, token, doc_type, expect=201, label=None):
 
 
 def upload_all_required_documents(app_id, token):
-    """Uploads PAN_CARD/SALARY_SLIP/ADDRESS_PROOF and returns the list of
+    """Uploads PAN_CARD/SALARY_SLIP/AADHAAR_CARD and returns the list of
     created document ids (skips any that fail, they'll show as a FAIL)."""
     doc_ids = []
-    for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
+    for doc_type in ("PAN_CARD", "SALARY_SLIP", "AADHAAR_CARD"):
         r = upload_document(app_id, token, doc_type, label=f"upload {doc_type} for application {app_id}")
         if r.ok:
             doc_ids.append(r.json()["id"])

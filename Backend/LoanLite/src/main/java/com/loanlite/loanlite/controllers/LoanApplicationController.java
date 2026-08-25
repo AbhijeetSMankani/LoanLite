@@ -66,7 +66,7 @@ public class LoanApplicationController {
     private static final List<String> REQUIRED_DOCUMENT_TYPES = List.of(
             "PAN_CARD",
             "SALARY_SLIP",
-            "ADDRESS_PROOF"
+            "AADHAAR_CARD"
     );
 
     // Allow-listed upload content-types (featuresTodo.csv task 10) - covers scanned/photographed
@@ -272,7 +272,7 @@ public class LoanApplicationController {
     }
 
     // POST /api/applications/{applicationId}/documents
-    // Uploads a multipart file such as PAN card, salary slip, or address proof
+    // Uploads a multipart file such as PAN card, salary slip, or Aadhaar card
     // and stores it against the application record. Ownership-checked: owning applicant,
     // assigned processor/underwriter, or admin only - same access rule as the reads in task 4.
     @PostMapping("/{id}/documents")

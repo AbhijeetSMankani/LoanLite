@@ -53,7 +53,7 @@ public class DocumentController {
     private static final List<String> REQUIRED_DOCUMENT_TYPES = List.of(
             "PAN_CARD",
             "SALARY_SLIP",
-            "ADDRESS_PROOF"
+            "AADHAAR_CARD"
     );
 
 

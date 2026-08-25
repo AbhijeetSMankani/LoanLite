@@ -55,7 +55,7 @@ public class ProcessorController {
     private static final List<String> REQUIRED_DOCUMENT_TYPES = List.of(
             "PAN_CARD",
             "SALARY_SLIP",
-            "ADDRESS_PROOF"
+            "AADHAAR_CARD"
     );
 
     // Debt-to-income proxy threshold (added 2026-08-24 at the user's request): this loan's own

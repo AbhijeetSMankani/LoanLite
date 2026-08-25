@@ -261,7 +261,7 @@ guarded(
 )
 
 app1_doc_ids = []
-for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
+for doc_type in ("PAN_CARD", "SALARY_SLIP", "AADHAAR_CARD"):
     files = {"file": (f"{doc_type.lower()}.txt", io.BytesIO(b"dummy file contents"), "text/plain")}
     data = {"documentType": doc_type, "remarks": f"test upload for {doc_type}"}
     r = call("POST", f"/applications/{app1_id}/documents", token=applicant_token,

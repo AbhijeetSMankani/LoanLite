@@ -27,7 +27,7 @@ fixes and one brand-new endpoint):
    updated to match.
 
 3. Verification strictness: verifyApplication() must require every required
-   document type (PAN_CARD, SALARY_SLIP, ADDRESS_PROOF) to have an uploaded
+   document type (PAN_CARD, SALARY_SLIP, AADHAAR_CARD) to have an uploaded
    document whose verificationStatus is exactly VERIFIED - not merely
    "present and not REJECTED" as today. A PENDING document must block
    verification (400) exactly like a REJECTED one does.
@@ -81,7 +81,7 @@ REMOVED_STATUS_WAITING_FOR_DOCS = "Waiting for Documents"  # must never be set b
 # failure path specifically - backendTodo.csv task 8 later reintroduced this same status string,
 # but only via requestDocuments() (see Section C below), never from verify() failing
 
-REQUIRED_DOCUMENT_TYPES = ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF")
+REQUIRED_DOCUMENT_TYPES = ("PAN_CARD", "SALARY_SLIP", "AADHAAR_CARD")
 
 # --- assumed new decision endpoint shape (not locked in, see docstring) ---
 DECISION_PATH = "/underwriter/applications/{id}/decision"
@@ -217,7 +217,7 @@ app_b1 = advance_to_under_verification("section B1 - missing type")
 if not app_b1:
     skip("Section B1 skipped, could not create/advance the application")
 else:
-    # Only upload 2 of the 3 required types, both VERIFIED - ADDRESS_PROOF is missing entirely.
+    # Only upload 2 of the 3 required types, both VERIFIED - AADHAAR_CARD is missing entirely.
     doc_ids_b1 = []
     for doc_type in ("PAN_CARD", "SALARY_SLIP"):
         r = upload_document(app_b1, users.applicant.token, doc_type, label=f"upload {doc_type} (section B1)")
@@ -275,7 +275,7 @@ if not app_b3:
 else:
     doc_ids_b3 = upload_and_mark(
         app_b3,
-        {"PAN_CARD": "VERIFIED", "SALARY_SLIP": "VERIFIED", "ADDRESS_PROOF": "REJECTED"},
+        {"PAN_CARD": "VERIFIED", "SALARY_SLIP": "VERIFIED", "AADHAAR_CARD": "REJECTED"},
         "section B3",
     )
 

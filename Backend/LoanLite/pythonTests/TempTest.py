@@ -317,7 +317,7 @@ else:
         "submit task-2 application",
     )
 
-    for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
+    for doc_type in ("PAN_CARD", "SALARY_SLIP", "AADHAAR_CARD"):
         # application/pdf, not text/plain - featuresTodo.csv task 10's content-type allow-list
         # rejects text/plain now.
         files = {"file": (f"{doc_type.lower()}.pdf", io.BytesIO(b"%PDF-1.4 dummy file contents"), "application/pdf")}
@@ -551,7 +551,7 @@ else:
     record(r.ok and not any(a["id"] == task4_app_id for a in page_content(r)),
            "task-4 application does not appear in an unassigned processor's list")
 
-    for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
+    for doc_type in ("PAN_CARD", "SALARY_SLIP", "AADHAAR_CARD"):
         # application/pdf, not text/plain - featuresTodo.csv task 10's content-type allow-list
         # rejects text/plain now.
         files = {"file": (f"{doc_type.lower()}.pdf", io.BytesIO(b"%PDF-1.4 dummy file contents"), "application/pdf")}
@@ -816,8 +816,8 @@ else:
     if r.ok:
         body = r.json()
         record(len(body.get("documents", [])) == 1, "exactly 1 document uploaded so far")
-        record(set(body.get("missingRequiredDocuments", [])) == {"SALARY_SLIP", "ADDRESS_PROOF"},
-               f"missing docs are SALARY_SLIP/ADDRESS_PROOF (got {body.get('missingRequiredDocuments')})")
+        record(set(body.get("missingRequiredDocuments", [])) == {"SALARY_SLIP", "AADHAAR_CARD"},
+               f"missing docs are SALARY_SLIP/AADHAAR_CARD (got {body.get('missingRequiredDocuments')})")
 
     call("POST", f"/applications/999999999/documents", token=applicant_token,
          files={"file": ("x.txt", io.BytesIO(b"x"), "text/plain")}, data={"documentType": "OTHER"},
@@ -843,7 +843,7 @@ else:
     call("GET", f"/applications/{task8_app_id}/documents", token=processor2_token, expect=403,
          label="unassigned processor2 lists task-8 application documents (should be forbidden)")
     upload(processor_token, "SALARY_SLIP", 201, "assigned processor uploads SALARY_SLIP for task-8 application")
-    upload(applicant_token, "ADDRESS_PROOF", 201, "owning applicant uploads ADDRESS_PROOF for task-8 application")
+    upload(applicant_token, "AADHAAR_CARD", 201, "owning applicant uploads AADHAAR_CARD for task-8 application")
     r = call("GET", f"/applications/{task8_app_id}/documents", token=processor_token, expect=200,
               label="assigned processor lists task-8 application documents")
     if r.ok:
@@ -945,7 +945,7 @@ else:
     record(r.ok and any(d["id"] == task9_doc_id for d in page_content(r)),
            "task-9 document appears in the admin's document list")
 
-    for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
+    for doc_type in ("PAN_CARD", "SALARY_SLIP", "AADHAAR_CARD"):
         # application/pdf, not text/plain - featuresTodo.csv task 10's content-type allow-list
         # rejects text/plain now.
         files = {"file": (f"{doc_type.lower()}.pdf", io.BytesIO(b"%PDF-1.4 dummy file contents"), "application/pdf")}
@@ -1321,7 +1321,7 @@ else:
            "task-11 history entry does not appear in an unassigned processor's list")
 
     task11_new_doc_ids = []
-    for doc_type in ("PAN_CARD", "SALARY_SLIP", "ADDRESS_PROOF"):
+    for doc_type in ("PAN_CARD", "SALARY_SLIP", "AADHAAR_CARD"):
         # application/pdf, not text/plain - featuresTodo.csv task 10's content-type allow-list
         # rejects text/plain now.
         files = {"file": (f"{doc_type.lower()}.pdf", io.BytesIO(b"%PDF-1.4 dummy file contents"), "application/pdf")}
