@@ -158,13 +158,24 @@ const MyApplications = () => {
                         {new Date(application.createdAt).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => navigate(`/applicant/application/${application.id}`)}
-                        >
-                          View
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/applicant/application/${application.id}`)}
+                          >
+                            View
+                          </Button>
+                          {application.status === 'Draft' && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => navigate(`/applicant/apply/${application.id}`)}
+                            >
+                              Edit
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

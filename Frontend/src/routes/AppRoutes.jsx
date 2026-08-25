@@ -105,6 +105,14 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/applicant/apply/:id"
+        element={
+          <ProtectedRoute requiredRole="applicant">
+            <ApplyLoan />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/applicant/my-applications"
         element={
           <ProtectedRoute requiredRole="applicant">

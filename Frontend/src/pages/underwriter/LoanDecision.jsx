@@ -8,16 +8,8 @@ import EmptyState from '../../components/EmptyState';
 import loanService from '../../services/loanService';
 import documentService from '../../services/documentService';
 import { fullName } from '../../utils/role';
+import { documentTypeLabel } from '../../utils/documentType';
 import { ArrowLeft, CheckCircle2, XCircle, AlertTriangle, FileCheck2 } from 'lucide-react';
-
-const DOCUMENT_TYPE_LABELS = {
-  PAN_CARD: 'PAN Card',
-  SALARY_SLIP: 'Salary Slip',
-  ADDRESS_PROOF: 'Address Proof',
-  OTHER: 'Other',
-};
-
-const documentTypeLabel = (type) => DOCUMENT_TYPE_LABELS[type?.toUpperCase()] || type || 'Other';
 
 const LoanDecision = () => {
   const { id } = useParams();

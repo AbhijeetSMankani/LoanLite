@@ -25,6 +25,19 @@ const loanService = {
     return { data };
   },
 
+  // Edits a still-Draft application via the generic PUT endpoint. Only the
+  // owning applicant, and only while status is still Draft (enforced
+  // server-side) — status itself is never sent, the backend force-nulls it
+  // for the owning applicant anyway (partial merge keeps the existing Draft).
+  updateDraftApplication: async (applicationId, applicationData) => {
+    const { data } = await axiosInstance.put(`/loan-applications/${applicationId}`, {
+      loanAmount: Number(applicationData.loanAmount) || null,
+      tenureMonths: Number(applicationData.loanTerm) || null,
+      declaredIncome: Number(applicationData.income) || null,
+    });
+    return { data };
+  },
+
   // GET /loan-applications now returns Spring's Page<T> envelope
   // ({ content, totalElements, ... }) instead of a bare array — unwrap it
   // here and forward page/size to the server instead of re-paginating

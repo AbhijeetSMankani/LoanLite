@@ -10,16 +10,8 @@ import loanService from '../../services/loanService';
 import documentService from '../../services/documentService';
 import StatusBadge from '../../components/StatusBadge';
 import { fullName } from '../../utils/role';
+import { documentTypeLabel } from '../../utils/documentType';
 import { FileSearch, AlertTriangle } from 'lucide-react';
-
-const DOCUMENT_TYPE_LABELS = {
-  PAN_CARD: 'PAN Card',
-  SALARY_SLIP: 'Salary Slip',
-  ADDRESS_PROOF: 'Address Proof',
-  OTHER: 'Other',
-};
-
-const documentTypeLabel = (type) => DOCUMENT_TYPE_LABELS[type?.toUpperCase()] || type || 'Other';
 
 // Mirrors ProcessorController.verifyApplication()'s actual rule: for each
 // required type, at least one uploaded document of that type must be
@@ -181,7 +173,8 @@ const DocumentVerification = () => {
             <div className="flex items-start gap-2">
               <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
               <p className="text-amber-800 text-sm">
-                Missing required documents: <span className="font-semibold">{missingRequiredDocuments.join(', ')}</span>
+                Missing required documents:{' '}
+                <span className="font-semibold">{missingRequiredDocuments.map(documentTypeLabel).join(', ')}</span>
               </p>
             </div>
             <Button variant="warning" size="sm" onClick={() => setShowRequestModal(true)}>
@@ -327,7 +320,9 @@ const DocumentVerification = () => {
           }
         >
           <p className="text-gray-600 text-sm mb-4">
-            This notifies the applicant they still need to provide {missingRequiredDocuments.join(', ') || 'some documents'}. It does not change the application's status.
+            This notifies the applicant they still need to provide{' '}
+            {missingRequiredDocuments.map(documentTypeLabel).join(', ') || 'some documents'}. It does not change the
+            application's status.
           </p>
           <Input
             label="Message (optional)"

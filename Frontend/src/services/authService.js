@@ -1,11 +1,6 @@
 import axiosInstance from '../api/axiosInstance';
 import { fullName, stripRolePrefix } from '../utils/role';
 
-const splitName = (name = '') => {
-  const parts = name.trim().split(/\s+/);
-  return { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' };
-};
-
 const authService = {
   login: async (email, password) => {
     // /auth/login returns the JWT in the response body — store it so the
@@ -22,13 +17,11 @@ const authService = {
   },
 
   signup: async (userData) => {
-    const { firstName, lastName } = splitName(userData.name);
     await axiosInstance.post('/auth/register', {
       email: userData.email,
       password: userData.password,
-      firstName,
-      lastName,
-      role: userData.role,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
     });
 
     // register() only creates the account — log the new user in immediately

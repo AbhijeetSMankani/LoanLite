@@ -1,18 +1,40 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import Input from '../../components/Input';
 import Button from '../../components/Button';
 import Card from '../../components/Card';
+import Loader from '../../components/Loader';
 import loanService from '../../services/loanService';
 import { Check } from 'lucide-react';
 
 const STEPS = ['Loan Details', 'Income Details', 'Review'];
+
+// Mirrors LoanApplication.MIN_LOAN_AMOUNT/MAX_LOAN_AMOUNT — the backend
+// rejects anything outside this range with a 400 on create/update, so catch
+// it here first with a clear message instead of a generic request failure.
+const MIN_LOAN_AMOUNT = 50000;
+const MAX_LOAN_AMOUNT = 2500000;
+
+const getLoanAmountError = (value) => {
+  if (value === '' || value === null || value === undefined) return '';
+  const amount = Number(value);
+  if (amount > MAX_LOAN_AMOUNT) {
+    return `Limit exceeded — maximum loan amount is ₹${MAX_LOAN_AMOUNT.toLocaleString('en-IN')}`;
+  }
+  if (amount < MIN_LOAN_AMOUNT) {
+    return `Minimum loan amount is ₹${MIN_LOAN_AMOUNT.toLocaleString('en-IN')}`;
+  }
+  return '';
+};
 
 const selectClass =
   'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-4 focus:ring-primary-100 focus:border-primary-500 transition-all';
 
 const ApplyLoan = () => {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEditMode = Boolean(id);
+  const [initializing, setInitializing] = useState(isEditMode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -22,6 +44,33 @@ const ApplyLoan = () => {
     loanTerm: '',
     income: '',
   });
+
+  useEffect(() => {
+    if (!isEditMode) return;
+
+    const loadDraft = async () => {
+      try {
+        setInitializing(true);
+        const { data: app } = await loanService.getApplicationById(id);
+        if (app.status !== 'Draft') {
+          setError('This application can no longer be edited — it has left Draft status.');
+          return;
+        }
+        setFormData({
+          loanAmount: app.loanAmount ?? '',
+          loanTerm: app.tenureMonths ?? '',
+          income: app.declaredIncome ?? '',
+        });
+      } catch (err) {
+        setError(err.message || 'Failed to load draft application');
+      } finally {
+        setInitializing(false);
+      }
+    };
+
+    loadDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -33,9 +82,16 @@ const ApplyLoan = () => {
   };
 
   const handleNext = () => {
-    if (step === 1 && (!formData.loanAmount || !formData.loanTerm)) {
-      setError('Please fill in all fields');
-      return;
+    if (step === 1) {
+      if (!formData.loanAmount || !formData.loanTerm) {
+        setError('Please fill in all fields');
+        return;
+      }
+      const amountError = getLoanAmountError(formData.loanAmount);
+      if (amountError) {
+        setError(amountError);
+        return;
+      }
     }
     if (step === 2 && !formData.income) {
       setError('Please fill in all fields');
@@ -54,11 +110,15 @@ const ApplyLoan = () => {
     setLoading(true);
     setError('');
     try {
-      await loanService.createApplication({ ...formData, status: 'draft' });
+      if (isEditMode) {
+        await loanService.updateDraftApplication(id, formData);
+      } else {
+        await loanService.createApplication({ ...formData, status: 'draft' });
+      }
       setSuccess('Draft saved successfully!');
       setTimeout(() => navigate('/applicant/my-applications'), 1500);
     } catch (err) {
-      setError(err.message || 'Failed to save draft');
+      setError(err.response?.data?.message || 'Failed to save draft');
     } finally {
       setLoading(false);
     }
@@ -68,26 +128,32 @@ const ApplyLoan = () => {
     setLoading(true);
     setError('');
     try {
-      // Create always lands as Draft server-side regardless of what status
-      // is sent — actually moving to Submitted requires the dedicated
-      // submit action on the newly created application.
-      const { data: created } = await loanService.createApplication({ ...formData, status: 'draft' });
-      await loanService.submitApplication(created.id);
+      // Create/update always lands as Draft server-side regardless of what
+      // status is sent — actually moving to Submitted requires the
+      // dedicated submit action on the application.
+      const applicationId = isEditMode
+        ? (await loanService.updateDraftApplication(id, formData)).data.id
+        : (await loanService.createApplication({ ...formData, status: 'draft' })).data.id;
+      await loanService.submitApplication(applicationId);
       setSuccess('Application submitted successfully!');
       setTimeout(() => navigate('/applicant/my-applications'), 1500);
     } catch (err) {
-      setError(err.message || 'Failed to submit application');
+      setError(err.response?.data?.message || 'Failed to submit application');
     } finally {
       setLoading(false);
     }
   };
+
+  if (initializing) return <Loader fullScreen />;
 
   return (
     <div className="max-w-4xl mx-auto py-6 sm:py-8 px-4">
       <Card className="p-6 sm:p-8">
         {/* Header + progress */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">Apply for a Personal Loan</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
+            {isEditMode ? 'Edit Your Draft Application' : 'Apply for a Personal Loan'}
+          </h1>
           <p className="text-gray-500 mb-4">Step {step} of 3 &mdash; {STEPS[step - 1]}</p>
           <div className="flex items-center gap-2">
             {STEPS.map((label, i) => {
@@ -143,6 +209,7 @@ const ApplyLoan = () => {
                 min="50000"
                 max="2500000"
                 required
+                error={getLoanAmountError(formData.loanAmount)}
               />
               <div className="mb-4">
                 <label className="block text-gray-700 font-semibold mb-1.5 text-sm">
@@ -210,9 +277,15 @@ const ApplyLoan = () => {
             )}
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={handleSaveDraft} loading={loading}>
-              Save as Draft
-            </Button>
+            {/* Every required field (including income, collected in step 2) must
+                be filled before a draft can be saved — the backend validates the
+                full application on create/update, so offering this earlier just
+                guarantees a 400. */}
+            {step === 3 && (
+              <Button variant="outline" onClick={handleSaveDraft} loading={loading}>
+                Save as Draft
+              </Button>
+            )}
             {step < 3 ? (
               <Button variant="primary" onClick={handleNext} disabled={loading}>
                 Next

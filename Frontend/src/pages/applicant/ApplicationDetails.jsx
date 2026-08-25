@@ -9,16 +9,8 @@ import EmptyState from '../../components/EmptyState';
 import loanService from '../../services/loanService';
 import documentService from '../../services/documentService';
 import { getDisplayStatus } from '../../utils/applicationStatus';
-import { ArrowLeft, FileUp, FileCheck2, AlertTriangle, Send, Ban, Trash2 } from 'lucide-react';
-
-const DOCUMENT_TYPE_LABELS = {
-  PAN_CARD: 'PAN Card',
-  SALARY_SLIP: 'Salary Slip',
-  ADDRESS_PROOF: 'Address Proof',
-  OTHER: 'Other',
-};
-
-const documentTypeLabel = (type) => DOCUMENT_TYPE_LABELS[type?.toUpperCase()] || type || 'Other';
+import { documentTypeLabel } from '../../utils/documentType';
+import { ArrowLeft, FileUp, FileCheck2, AlertTriangle, Send, Ban, Trash2, Pencil, CheckCircle2, XCircle } from 'lucide-react';
 
 const ApplicationDetails = () => {
   const { id } = useParams();
@@ -143,6 +135,8 @@ const ApplicationDetails = () => {
   const isDraft = application.status === 'Draft';
   const isWithdrawn = application.status === 'Withdrawn';
   const isWaitingForDocuments = displayStatus === 'Waiting for Documents';
+  const isAccepted = application.status === 'Accepted';
+  const isRejected = application.status === 'Rejected';
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
@@ -186,9 +180,19 @@ const ApplicationDetails = () => {
           {(isDraft || !isWithdrawn) && (
             <div className="mt-5 pt-5 border-t border-gray-100 flex flex-wrap gap-3">
               {isDraft && (
-                <Button variant="success" size="sm" loading={actionLoading} onClick={handleSubmitApplication}>
-                  <Send size={14} /> Submit Application
-                </Button>
+                <>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => navigate(`/applicant/apply/${application.id}`)}
+                    disabled={actionLoading}
+                  >
+                    <Pencil size={14} /> Edit
+                  </Button>
+                  <Button variant="success" size="sm" loading={actionLoading} onClick={handleSubmitApplication}>
+                    <Send size={14} /> Submit Application
+                  </Button>
+                </>
               )}
               {!isWithdrawn && (
                 <Button variant="danger" size="sm" onClick={() => setShowWithdrawModal(true)} disabled={actionLoading}>
@@ -198,6 +202,27 @@ const ApplicationDetails = () => {
             </div>
           )}
         </Card>
+
+        {/* Underwriter Decision */}
+        {(isAccepted || isRejected) && (
+          <Card className={`mb-6 border-l-4 ${isAccepted ? 'border-l-green-500' : 'border-l-red-500'}`}>
+            <div className="flex items-start gap-3">
+              {isAccepted ? (
+                <CheckCircle2 size={20} className="text-green-600 shrink-0 mt-0.5" />
+              ) : (
+                <XCircle size={20} className="text-red-600 shrink-0 mt-0.5" />
+              )}
+              <div>
+                <h3 className="text-base font-bold text-gray-800">
+                  Application {isAccepted ? 'Accepted' : 'Rejected'}
+                </h3>
+                <p className="text-sm text-gray-700 mt-1">
+                  {application.decisionComments || 'No additional reason was provided by the underwriter.'}
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Application Details */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -313,7 +338,7 @@ const ApplicationDetails = () => {
               <option value="OTHER">Other</option>
               <option value="PAN_CARD">PAN Card</option>
               <option value="SALARY_SLIP">Salary Slip</option>
-              <option value="ADDRESS_PROOF">Address Proof</option>
+              <option value="ADDRESS_PROOF">Aadhaar</option>
             </select>
           </div>
 

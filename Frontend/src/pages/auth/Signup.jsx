@@ -12,7 +12,8 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -30,13 +31,21 @@ const Signup = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
+    if (
+      !formData.firstName ||
+      !formData.lastName ||
+      !formData.email ||
+      !formData.password ||
+      !formData.confirmPassword
+    ) {
       setError('All fields are required');
       return;
     }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters');
+    // Backend enforces password length >= 8 (RegisterRequest's @Size(min = 8)) —
+    // keep this in sync so the frontend doesn't accept something the server rejects.
+    if (formData.password.length < 8) {
+      setError('Password must be at least 8 characters');
       return;
     }
 
@@ -50,7 +59,8 @@ const Signup = () => {
 
     try {
       const response = await authService.signup({
-        name: formData.name,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
         email: formData.email,
         password: formData.password,
       });
@@ -87,16 +97,29 @@ const Signup = () => {
             </div>
           )}
 
-          <Input
-            label="Full Name"
-            name="name"
-            type="text"
-            value={formData.name}
-            onChange={handleChange}
-            placeholder="Enter your full name"
-            required
-            disabled={loading}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+            <Input
+              label="First Name"
+              name="firstName"
+              type="text"
+              value={formData.firstName}
+              onChange={handleChange}
+              placeholder="First name"
+              required
+              disabled={loading}
+            />
+
+            <Input
+              label="Last Name"
+              name="lastName"
+              type="text"
+              value={formData.lastName}
+              onChange={handleChange}
+              placeholder="Last name"
+              required
+              disabled={loading}
+            />
+          </div>
 
           <Input
             label="Email"
@@ -115,7 +138,7 @@ const Signup = () => {
             type="password"
             value={formData.password}
             onChange={handleChange}
-            placeholder="Enter password (min 6 characters)"
+            placeholder="Enter password (min 8 characters)"
             required
             disabled={loading}
           />
