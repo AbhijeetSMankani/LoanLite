@@ -15,6 +15,22 @@ const STEPS = ['Loan Details', 'Income Details', 'Review'];
 const MIN_LOAN_AMOUNT = 50000;
 const MAX_LOAN_AMOUNT = 2500000;
 
+// Mirrors LoanApplicationService.FIXED_ANNUAL_INTEREST_RATE / calculateEmi —
+// every application gets this same fixed rate server-side, so the estimate
+// shown here before submission matches what the backend will persist.
+const FIXED_ANNUAL_INTEREST_RATE = 12.0;
+
+const calculateEmi = (principal, tenureMonths) => {
+  const p = Number(principal);
+  const n = Number(tenureMonths);
+  if (!p || !n || p <= 0 || n <= 0) return null;
+  const monthlyRate = FIXED_ANNUAL_INTEREST_RATE / 1200;
+  const compounded = Math.pow(1 + monthlyRate, n);
+  const denominator = compounded - 1;
+  if (denominator === 0) return null;
+  return (p * monthlyRate * compounded) / denominator;
+};
+
 const getLoanAmountError = (value) => {
   if (value === '' || value === null || value === undefined) return '';
   const amount = Number(value);
@@ -250,7 +266,7 @@ const ApplyLoan = () => {
         {step === 3 && (
           <div>
             <h2 className="text-lg font-bold text-gray-800 mb-6">Review Your Application</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-gray-50 p-6 rounded-xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-gray-50 p-6 rounded-xl">
               <div>
                 <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Loan Amount</p>
                 <p className="text-2xl font-bold text-primary-600">₹{parseInt(formData.loanAmount || 0).toLocaleString()}</p>
@@ -263,7 +279,21 @@ const ApplyLoan = () => {
                 <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Monthly Income</p>
                 <p className="text-lg font-semibold text-gray-800">₹{parseInt(formData.income || 0).toLocaleString()}</p>
               </div>
+              <div>
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide">Estimated Monthly EMI</p>
+                <p className="text-lg font-semibold text-gray-800">
+                  {(() => {
+                    const emi = calculateEmi(formData.loanAmount, formData.loanTerm);
+                    return emi
+                      ? `₹${emi.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+                      : '—';
+                  })()}
+                </p>
+              </div>
             </div>
+            <p className="text-xs text-gray-400 mt-3">
+              Estimated at {FIXED_ANNUAL_INTEREST_RATE}% p.a. — the fixed rate applied to every loan.
+            </p>
           </div>
         )}
 
