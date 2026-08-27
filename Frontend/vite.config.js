@@ -16,5 +16,15 @@ export default defineConfig({
   },
   preview:{
     cors: true,
-  }
+  },
+  test: {
+    // jsdom 27's bundled @asamuzakjp/css-color pulls in an ESM-only
+    // @csstools/css-calc that jsdom's CJS require() can't load on this
+    // Node version (ERR_REQUIRE_ESM) — happy-dom avoids that entirely and
+    // is the more common Vitest pairing anyway.
+    environment: 'happy-dom',
+    globals: true,
+    setupFiles: './src/test/setup.js',
+    css: false,
+  },
 })

@@ -49,11 +49,16 @@ const LoanDecision = () => {
   const handleSubmitDecision = async () => {
     try {
       setLoading(true);
+      setError('');
       await loanService.decideApplication(id, decision, comments);
       setSuccess(`Application ${decision === 'ACCEPT' ? 'accepted' : 'rejected'} successfully.`);
       setTimeout(() => navigate('/underwriter/applications'), 1500);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to submit decision');
+    } finally {
+      // Always clear loading — previously only the catch path did, so a
+      // successful decision left the full-screen spinner up for the whole
+      // 1.5s before navigating, and the success message was never seen.
       setLoading(false);
     }
   };
